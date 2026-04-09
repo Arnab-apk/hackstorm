@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Bell, Search, LogOut, User, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/ui/avatar';
@@ -19,8 +20,19 @@ interface HeaderProps {
 }
 
 function Header({ user, notificationCount = 0, showSearch = true }: HeaderProps) {
+  const router = useRouter();
   const [dropdownOpen, setDropdownOpen] = React.useState(false);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  const handleLogout = async () => {
+    setDropdownOpen(false);
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      router.push('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
 
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -103,10 +115,7 @@ function Header({ user, notificationCount = 0, showSearch = true }: HeaderProps)
                 <button
                   type="button"
                   className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors"
-                  onClick={() => {
-                    setDropdownOpen(false);
-                    // TODO: Handle logout
-                  }}
+                  onClick={handleLogout}
                 >
                   <LogOut className="h-4 w-4" />
                   Sign out

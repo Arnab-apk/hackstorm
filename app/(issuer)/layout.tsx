@@ -1,5 +1,8 @@
 'use client';
 
+import * as React from 'react';
+import { useRouter } from 'next/navigation';
+import useSWR from 'swr';
 import { AppShell } from '@/components/shared/app-shell';
 import {
   LayoutDashboard,
@@ -8,6 +11,7 @@ import {
   FolderOpen,
   Settings,
   HelpCircle,
+  Loader2,
 } from 'lucide-react';
 
 const navItems = [
@@ -22,22 +26,51 @@ const bottomNavItems = [
   { label: 'Help', href: '/issuer/help', icon: <HelpCircle className="h-5 w-5" /> },
 ];
 
-// Mock user data - in production this would come from auth context
-const mockUser = {
-  name: 'Demo University',
-  email: 'admin@university.edu',
-  role: 'issuer',
-};
+const fetcher = (url: string) => fetch(url).then(res => res.json());
 
 export default function IssuerLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const { data, error, isLoading } = useSWR('/api/auth/me', fetcher);
+
+  React.useEffect(() => {
+    if (error || (data && !data.address)) {
+      router.push('/login');
+    } else if (data && data.role !== 'issuer') {
+      // Redirect to correct portal based on role
+      const routes: Record<string, string> = {
+        user: '/wallet',
+        verifier: '/verifier',
+      };
+      router.push(routes[data.role] || '/login');
+    }
+  }, [data, error, router]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!data?.address || data.role !== 'issuer') {
+    return null;
+  }
+
+  const user = {
+    name: data.email?.split('@')[0] || 'Issuer',
+    email: data.email || data.address,
+    role: 'issuer',
+  };
+
   return (
     <AppShell
       sidebarTitle="CredVault"
       sidebarSubtitle="Issuer Portal"
       navItems={navItems}
       bottomNavItems={bottomNavItems}
-      user={mockUser}
-      notificationCount={3}
+      user={user}
+      notificationCount={0}
     >
       {children}
     </AppShell>
