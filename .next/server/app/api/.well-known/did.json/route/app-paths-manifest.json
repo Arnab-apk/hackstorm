@@ -1,0 +1,3 @@
+{
+  "/api/.well-known/did.json/route": "app/api/.well-known/did.json/route.js"
+}

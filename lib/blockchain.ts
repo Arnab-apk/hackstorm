@@ -1,6 +1,7 @@
 import { 
   createPublicClient, 
   createWalletClient, 
+  encodeFunctionData,
   http,
   type PublicClient,
   type WalletClient,
@@ -97,18 +98,23 @@ export async function getIssuer(issuerAddress: string): Promise<TrustedIssuer | 
       abi: CREDENTIAL_REGISTRY_ABI,
       functionName: 'getIssuer',
       args: [issuerAddress as `0x${string}`],
-    }) as [string, string, boolean, bigint];
+    }) as {
+      did: string;
+      name: string;
+      active: boolean;
+      registeredAt: bigint;
+    };
     
-    if (!result[2] && result[3] === 0n) {
+    if (!result.active && result.registeredAt === BigInt(0)) {
       return null;
     }
     
     return {
       address: issuerAddress,
-      did: result[0],
-      name: result[1],
-      active: result[2],
-      registeredAt: Number(result[3]),
+      did: result.did,
+      name: result.name,
+      active: result.active,
+      registeredAt: Number(result.registeredAt),
     };
   } catch {
     return null;
@@ -150,19 +156,26 @@ export async function getBatch(merkleRoot: string): Promise<{
       abi: CREDENTIAL_REGISTRY_ABI,
       functionName: 'getBatch',
       args: [merkleRoot as `0x${string}`],
-    }) as [string, string, string, bigint, bigint, boolean];
+    }) as {
+      merkleRoot: string;
+      issuer: string;
+      issuerDID: string;
+      credentialCount: bigint;
+      timestamp: bigint;
+      exists: boolean;
+    };
     
-    if (!result[5]) {
+    if (!result.exists) {
       return null;
     }
     
     return {
-      merkleRoot: result[0],
-      issuer: result[1],
-      issuerDID: result[2],
-      credentialCount: Number(result[3]),
-      timestamp: Number(result[4]),
-      exists: result[5],
+      merkleRoot: result.merkleRoot,
+      issuer: result.issuer,
+      issuerDID: result.issuerDID,
+      credentialCount: Number(result.credentialCount),
+      timestamp: Number(result.timestamp),
+      exists: result.exists,
     };
   } catch {
     return null;
@@ -202,12 +215,16 @@ export async function getRevocationDetails(
     abi: CREDENTIAL_REGISTRY_ABI,
     functionName: 'getRevocationDetails',
     args: [merkleRoot as `0x${string}`, BigInt(leafIndex)],
-  }) as [boolean, bigint, string];
+  }) as {
+    revoked: boolean;
+    revokedAt: bigint;
+    reason: string;
+  };
   
   return {
-    revoked: result[0],
-    revokedAt: Number(result[1]),
-    reason: result[2],
+    revoked: result.revoked,
+    revokedAt: Number(result.revokedAt),
+    reason: result.reason,
   };
 }
 
@@ -230,7 +247,7 @@ export async function verifyCredentialStatus(
     abi: CREDENTIAL_REGISTRY_ABI,
     functionName: 'verifyCredentialStatus',
     args: [merkleRoot as `0x${string}`, BigInt(leafIndex)],
-  }) as [boolean, boolean, boolean, string];
+  }) as readonly [boolean, boolean, boolean, string];
   
   return {
     exists: result[0],
@@ -255,6 +272,8 @@ export async function anchorBatch(
   const publicClient = getPublicClient();
   
   const hash = await wallet.writeContract({
+    account: wallet.account!,
+    chain: polygonAmoyConfig,
     address: CONTRACT_ADDRESS,
     abi: CREDENTIAL_REGISTRY_ABI,
     functionName: 'anchorBatch',
@@ -284,6 +303,8 @@ export async function revokeCredentialOnChain(
   const publicClient = getPublicClient();
   
   const hash = await wallet.writeContract({
+    account: wallet.account!,
+    chain: polygonAmoyConfig,
     address: CONTRACT_ADDRESS,
     abi: CREDENTIAL_REGISTRY_ABI,
     functionName: 'revokeCredential',
@@ -306,6 +327,8 @@ export async function unrevokeCredentialOnChain(
   const publicClient = getPublicClient();
   
   const hash = await wallet.writeContract({
+    account: wallet.account!,
+    chain: polygonAmoyConfig,
     address: CONTRACT_ADDRESS,
     abi: CREDENTIAL_REGISTRY_ABI,
     functionName: 'unrevokeCredential',
@@ -329,6 +352,8 @@ export async function registerIssuer(
   const publicClient = getPublicClient();
   
   const hash = await wallet.writeContract({
+    account: wallet.account!,
+    chain: polygonAmoyConfig,
     address: CONTRACT_ADDRESS,
     abi: CREDENTIAL_REGISTRY_ABI,
     functionName: 'registerIssuer',
@@ -348,6 +373,8 @@ export async function revokeIssuer(issuerAddress: string): Promise<Hash> {
   const publicClient = getPublicClient();
   
   const hash = await wallet.writeContract({
+    account: wallet.account!,
+    chain: polygonAmoyConfig,
     address: CONTRACT_ADDRESS,
     abi: CREDENTIAL_REGISTRY_ABI,
     functionName: 'revokeIssuer',
@@ -389,4 +416,95 @@ export async function getTransactionReceipt(txHash: Hash): Promise<TransactionRe
   } catch {
     return null;
   }
+}
+
+// ===========================================
+// LEGACY COMPATIBILITY HELPERS
+// ===========================================
+
+/**
+ * Build unsigned transaction data for frontend wallet signing.
+ */
+export async function prepareAnchorTransaction(
+  merkleRoot: `0x${string}`,
+  credentialCount: number
+): Promise<{ to: `0x${string}`; data: `0x${string}`; chainId: number }> {
+  const data = encodeFunctionData({
+    abi: CREDENTIAL_REGISTRY_ABI,
+    functionName: 'anchorBatch',
+    args: [merkleRoot, BigInt(credentialCount)],
+  });
+
+  return {
+    to: CONTRACT_ADDRESS,
+    data,
+    chainId: polygonAmoyConfig.id,
+  };
+}
+
+/**
+ * Wait for a transaction to be confirmed.
+ */
+export async function waitForTransaction(txHash: `0x${string}`): Promise<TransactionReceipt> {
+  const client = getPublicClient();
+  return client.waitForTransactionReceipt({
+    hash: txHash,
+    confirmations: 1,
+  });
+}
+
+/**
+ * Verify that a batch root is anchored on chain.
+ */
+export async function verifyBatchOnChain(merkleRoot: string): Promise<{
+  merkleRoot: string;
+  issuer: string;
+  issuerDID: string;
+  credentialCount: bigint;
+  timestamp: bigint;
+  exists: boolean;
+} | null> {
+  const client = getPublicClient();
+
+  try {
+    const result = await client.readContract({
+      address: CONTRACT_ADDRESS,
+      abi: CREDENTIAL_REGISTRY_ABI,
+      functionName: 'getBatch',
+      args: [merkleRoot as `0x${string}`],
+    }) as {
+      merkleRoot: string;
+      issuer: string;
+      issuerDID: string;
+      credentialCount: bigint;
+      timestamp: bigint;
+      exists: boolean;
+    };
+
+    if (!result.exists) {
+      return null;
+    }
+
+    return {
+      merkleRoot: result.merkleRoot,
+      issuer: result.issuer,
+      issuerDID: result.issuerDID,
+      credentialCount: result.credentialCount,
+      timestamp: result.timestamp,
+      exists: result.exists,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Legacy alias kept for older routes.
+ */
+export async function getIssuerDetails(issuerAddress: string): Promise<TrustedIssuer> {
+  const issuer = await getIssuer(issuerAddress);
+  if (!issuer) {
+    throw new Error('Issuer not found');
+  }
+  return issuer;
 }

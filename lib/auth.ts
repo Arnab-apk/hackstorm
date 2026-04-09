@@ -1,5 +1,6 @@
 import { SignJWT, jwtVerify, JWTPayload } from 'jose';
 import { cookies } from 'next/headers';
+import type { NextRequest } from 'next/server';
 import type { AuthSession, Role } from '@/types';
 import { getRole } from './roles';
 import { createDIDFromAddress } from './credentials';
@@ -116,11 +117,32 @@ export async function requireAuth(): Promise<AuthSession> {
 /**
  * Require specific role - throws if not authorized
  */
-export async function requireRole(role: Role): Promise<AuthSession> {
+export async function requireRole(role: Role): Promise<AuthSession>;
+export async function requireRole(
+  address: string,
+  role: Role
+): Promise<{ authorized: boolean; session: AuthSession | null }>;
+export async function requireRole(
+  roleOrAddress: Role | string,
+  maybeRole?: Role
+): Promise<AuthSession | { authorized: boolean; session: AuthSession | null }> {
+  // Legacy route compatibility: requireRole(address, role)
+  if (maybeRole) {
+    const session = await getSession();
+    if (!session) {
+      return { authorized: false, session: null };
+    }
+
+    const sameUser = session.address.toLowerCase() === roleOrAddress.toLowerCase();
+    return {
+      authorized: sameUser && session.role === maybeRole,
+      session,
+    };
+  }
+
   const session = await requireAuth();
-  
-  if (session.role !== role) {
-    throw new AuthError(`Role '${role}' required`, 403);
+  if (session.role !== roleOrAddress) {
+    throw new AuthError(`Role '${roleOrAddress}' required`, 403);
   }
 
   return session;
@@ -146,6 +168,13 @@ export async function requireVerifier(): Promise<AuthSession> {
 export async function hasRole(role: Role): Promise<boolean> {
   const session = await getSession();
   return session?.role === role;
+}
+
+/**
+ * Legacy helper for routes that pass request objects.
+ */
+export async function authenticateRequest(_request: NextRequest): Promise<AuthSession | null> {
+  return getSession();
 }
 
 // ===========================================
@@ -199,13 +228,27 @@ export async function predictAddressFromEmail(email: string): Promise<string> {
   
   // For hackathon, we'll need the actual Web3Auth integration
   // This is a placeholder that returns a deterministic hash
-  const { keccak_256 } = await import('@noble/hashes/sha3');
-  const { bytesToHex } = await import('@noble/hashes/utils');
+  const { keccak_256 } = await import('@noble/hashes/sha3.js');
+  const { bytesToHex } = await import('@noble/hashes/utils.js');
   
   const hash = keccak_256(new TextEncoder().encode(email));
   const address = '0x' + bytesToHex(hash.slice(0, 20));
   
   return address;
+}
+
+/**
+ * Batch helper for deterministic wallet prediction.
+ */
+export async function predictAddressesFromEmails(
+  emails: string[]
+): Promise<Array<{ email: string; address: string }>> {
+  return Promise.all(
+    emails.map(async (email) => ({
+      email,
+      address: await predictAddressFromEmail(email),
+    }))
+  );
 }
 
 // ===========================================

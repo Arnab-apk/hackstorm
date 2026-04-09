@@ -16,9 +16,11 @@ const config: HardhatUserConfig = {
   },
   networks: {
     hardhat: {
+      type: "edr-simulated",
       chainId: 31337,
     },
     polygon_amoy: {
+      type: "http",
       url: process.env.POLYGON_RPC_URL || "https://rpc-amoy.polygon.technology",
       chainId: 80002,
       accounts: process.env.DEPLOYER_PRIVATE_KEY 
@@ -26,6 +28,7 @@ const config: HardhatUserConfig = {
         : [],
     },
     polygon_mainnet: {
+      type: "http",
       url: "https://polygon-rpc.com",
       chainId: 137,
       accounts: process.env.DEPLOYER_PRIVATE_KEY 

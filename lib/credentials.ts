@@ -1,5 +1,5 @@
 import { sign } from '@noble/ed25519';
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { nanoid } from 'nanoid';
 import type { 
   VerifiableCredential, 

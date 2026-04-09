@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
 
       if (batch) {
         credential = await db.collection<CredentialDocument>('credentials').findOne({
-          batchId: batch._id,
+          batchId: String(batch._id),
           leafIndex: parseInt(leafIndex!, 10),
         });
       }

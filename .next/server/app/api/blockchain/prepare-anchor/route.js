@@ -1,0 +1,10 @@
+var R=require("../../../../chunks/[turbopack]_runtime.js")("server/app/api/blockchain/prepare-anchor/route.js")
+R.c("server/chunks/[root-of-the-server]__05qo8_f._.js")
+R.c("server/chunks/[root-of-the-server]__0~ii6hb._.js")
+R.c("server/chunks/[root-of-the-server]__0zqbz8q._.js")
+R.c("server/chunks/[root-of-the-server]__0ps-0u9._.js")
+R.c("server/chunks/[root-of-the-server]__0v8bdq7._.js")
+R.c("server/chunks/[root-of-the-server]__0-k9~i8._.js")
+R.c("server/chunks/_next-internal_server_app_api_blockchain_prepare-anchor_route_actions_0nqkb1z.js")
+R.m(86579)
+module.exports=R.m(86579).exports

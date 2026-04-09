@@ -16,7 +16,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select } from '@/components/ui/select';
 import { PageHeader } from '@/components/shared/page-header';
 import { useCreateRequest } from '@/hooks/use-requests';
 import { toast } from 'sonner';
@@ -152,18 +152,15 @@ export default function NewRequestPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Select value={credentialType} onValueChange={setCredentialType}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select credential type" />
-              </SelectTrigger>
-              <SelectContent>
-                {CREDENTIAL_TYPES.map((type) => (
-                  <SelectItem key={type.id} value={type.id}>
-                    {type.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Select
+              value={credentialType}
+              onValueChange={setCredentialType}
+              options={CREDENTIAL_TYPES.map((type) => ({
+                value: type.id,
+                label: type.name,
+              }))}
+              placeholder="Select credential type"
+            />
           </CardContent>
         </Card>
 
@@ -218,18 +215,11 @@ export default function NewRequestPage() {
                     <Select 
                       value={claim.type} 
                       onValueChange={(value) => updateClaim(index, { type: value as Claim['type'] })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CLAIM_TYPES.map((type) => (
-                          <SelectItem key={type.value} value={type.value}>
-                            {type.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      options={CLAIM_TYPES.map((type) => ({
+                        value: type.value,
+                        label: type.label,
+                      }))}
+                    />
                   </div>
                 </div>
 

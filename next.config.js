@@ -1,7 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    serverComponentsExternalPackages: ['mongodb', '@noble/hashes', '@noble/ed25519'],
+  serverExternalPackages: ['mongodb', '@noble/hashes', '@noble/ed25519'],
+  turbopack: {
+    resolveExtensions: ['.tsx', '.ts', '.jsx', '.js', '.mjs', '.json'],
   },
   webpack: (config) => {
     config.externals.push('pino-pretty', 'lokijs', 'encoding');

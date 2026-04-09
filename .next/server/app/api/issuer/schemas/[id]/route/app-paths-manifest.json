@@ -1,0 +1,3 @@
+{
+  "/api/issuer/schemas/[id]/route": "app/api/issuer/schemas/[id]/route.js"
+}

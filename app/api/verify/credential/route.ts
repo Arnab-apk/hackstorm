@@ -63,25 +63,27 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    const proof = fullCredential.proof;
+
     // 4. Verify merkle proof
     const merkleValid = verifyMerkleProof(
       credential?.leafHash || '', // Will be computed from credential if not in DB
-      fullCredential.proof.merkleProof,
-      fullCredential.proof.proofDirections,
-      fullCredential.proof.merkleRoot
+      proof.merkleProof,
+      proof.proofDirections,
+      proof.merkleRoot
     );
 
     // 5. Verify on-chain anchor
     let onChainValid = false;
     let anchorDetails = null;
     try {
-      const batchData = await verifyBatchOnChain(fullCredential.proof.merkleRoot);
+      const batchData = await verifyBatchOnChain(proof.merkleRoot);
       onChainValid = batchData !== null && batchData.timestamp > 0;
       if (batchData) {
         anchorDetails = {
-          merkleRoot: fullCredential.proof.merkleRoot,
-          txHash: fullCredential.proof.anchorTxHash,
-          chain: fullCredential.proof.anchorChain,
+          merkleRoot: proof.merkleRoot,
+          txHash: proof.anchorTransactionHash,
+          chain: proof.anchorChain,
           issuerAddress: batchData.issuer,
           timestamp: new Date(Number(batchData.timestamp) * 1000).toISOString(),
           credentialCount: Number(batchData.credentialCount),

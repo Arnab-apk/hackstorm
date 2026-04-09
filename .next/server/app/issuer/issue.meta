@@ -1,0 +1,17 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(issuer)/layout,_N_T_/(issuer)/issuer/layout,_N_T_/(issuer)/issuer/issue/layout,_N_T_/(issuer)/issuer/issue/page,_N_T_/issuer/issue"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/!KGlzc3Vlcik/issuer/issue/__PAGE__",
+    "/!KGlzc3Vlcik/issuer/issue",
+    "/!KGlzc3Vlcik/issuer",
+    "/!KGlzc3Vlcik",
+    "/_index",
+    "/_head"
+  ]
+}

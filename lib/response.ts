@@ -37,12 +37,22 @@ export function noContentResponse(): NextResponse {
 /**
  * Return an error response
  */
+export function errorResponse(message: string, status?: number): NextResponse;
 export function errorResponse(
   message: string,
   code: string,
+  status?: number,
+  details?: any
+): NextResponse;
+export function errorResponse(
+  message: string,
+  codeOrStatus: string | number = 'BAD_REQUEST',
   status: number = 400,
   details?: any
 ): NextResponse {
+  const code = typeof codeOrStatus === 'string' ? codeOrStatus : 'BAD_REQUEST';
+  const resolvedStatus = typeof codeOrStatus === 'number' ? codeOrStatus : status;
+
   const response: APIResponse = {
     success: false,
     error: {
@@ -51,7 +61,7 @@ export function errorResponse(
       details,
     },
   };
-  return NextResponse.json(response, { status });
+  return NextResponse.json(response, { status: resolvedStatus });
 }
 
 /**

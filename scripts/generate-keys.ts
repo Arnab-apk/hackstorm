@@ -44,8 +44,8 @@ async function main() {
   const ethPrivateKeyHex = Buffer.from(ethPrivateKey).toString("hex");
 
   // Derive address using keccak256 of public key
-  const { secp256k1 } = await import("@noble/curves/secp256k1");
-  const { keccak_256 } = await import("@noble/hashes/sha3");
+  const { secp256k1 } = await import("@noble/curves/secp256k1.js");
+  const { keccak_256 } = await import("@noble/hashes/sha3.js");
   
   const ethPublicKey = secp256k1.getPublicKey(ethPrivateKey, false).slice(1); // Remove 0x04 prefix
   const addressHash = keccak_256(ethPublicKey);

@@ -16,10 +16,10 @@ import type { ShareToken, CredentialDocument, VerifiableCredential } from '@/typ
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { token: string } }
+  { params }: { params: Promise<{ token: string }> }
 ) {
   try {
-    const { token } = params;
+    const { token } = await params;
 
     if (!token) {
       return errorResponse('Share token is required', 400);
@@ -77,23 +77,28 @@ export async function GET(
       return errorResponse('Failed to fetch credential from IPFS', 500);
     }
 
+    const proof = fullCredential.proof;
+    if (!proof) {
+      return errorResponse('Invalid credential structure - missing proof', 400);
+    }
+
     // 7. Verify merkle proof
     const merkleValid = verifyMerkleProof(
       credential.leafHash,
-      fullCredential.proof.merkleProof,
-      fullCredential.proof.proofDirections,
-      fullCredential.proof.merkleRoot
+      proof.merkleProof,
+      proof.proofDirections,
+      proof.merkleRoot
     );
 
     // 8. Verify on-chain anchor
     let onChainValid = false;
     let anchorDetails = null;
     try {
-      const batchData = await verifyBatchOnChain(fullCredential.proof.merkleRoot);
+      const batchData = await verifyBatchOnChain(proof.merkleRoot);
       onChainValid = batchData !== null && batchData.timestamp > 0;
       if (batchData) {
         anchorDetails = {
-          txHash: fullCredential.proof.anchorTxHash,
+          txHash: proof.anchorTransactionHash,
           blockNumber: batchData.timestamp,
           issuerAddress: batchData.issuer,
         };

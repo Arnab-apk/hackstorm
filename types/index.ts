@@ -195,6 +195,10 @@ export interface DBNotification {
   createdAt: Date;
 }
 
+// Backward-compatible aliases used by existing route handlers.
+export type CredentialDocument = DBCredential;
+export type ShareToken = DBShareToken;
+
 // ===========================================
 // MERKLE TREE TYPES
 // ===========================================

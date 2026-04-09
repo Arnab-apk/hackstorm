@@ -13,17 +13,17 @@ import type {
 // MONGODB CLIENT SINGLETON
 // ===========================================
 
-const MONGODB_URI = process.env.MONGODB_URI!;
+const MONGODB_URI = process.env.MONGODB_URI;
 const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME || 'decentralized-identity';
-
-if (!MONGODB_URI) {
-  throw new Error('Please define MONGODB_URI environment variable');
-}
 
 let cachedClient: MongoClient | null = null;
 let cachedDb: Db | null = null;
 
 export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db }> {
+  if (!MONGODB_URI) {
+    throw new Error('Please define MONGODB_URI environment variable');
+  }
+
   if (cachedClient && cachedDb) {
     return { client: cachedClient, db: cachedDb };
   }
@@ -35,6 +35,14 @@ export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db
   cachedDb = db;
 
   return { client, db };
+}
+
+/**
+ * Legacy helper kept for route compatibility.
+ */
+export async function getDatabase(): Promise<Db> {
+  const { db } = await connectToDatabase();
+  return db;
 }
 
 // ===========================================
