@@ -6,3 +6,7 @@
 {"timestamp":"00:00:08.742","source":"Server","level":"LOG","message":"○ Compiling / ..."}
 {"timestamp":"00:00:43.819","source":"Server","level":"LOG","message":"✓ Compiled in 152ms"}
 {"timestamp":"00:02:30.227","source":"Server","level":"LOG","message":"  Reload env: .env.development.local"}
+{"timestamp":"00:05:14.281","source":"Server","level":"LOG","message":"  Reload env: .env.development.local"}
+{"timestamp":"00:08:00.950","source":"Server","level":"LOG","message":"✓ Compiled in 264ms"}
+{"timestamp":"00:09:46.802","source":"Server","level":"LOG","message":"✓ Compiled in 135ms"}
+{"timestamp":"00:10:44.821","source":"Server","level":"LOG","message":"✓ Compiled in 84ms"}

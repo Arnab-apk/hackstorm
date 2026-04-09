@@ -2,113 +2,53 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import useSWR from 'swr';
 import { PageHeader } from '@/components/shared/page-header';
 import { CredentialCard } from '@/components/shared/credential-card';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Search,
   Inbox,
   Award,
   Share2,
-  Filter,
   Grid,
   List,
-  QrCode,
+  AlertCircle,
 } from 'lucide-react';
 
-interface Credential {
-  id: string;
-  schemaId: string;
-  schemaName: string;
-  issuerName: string;
-  issuerDID: string;
-  issuedAt: string;
-  claimed: boolean;
-  claimedAt?: string;
-  revoked: boolean;
-}
-
-// Mock credentials
-const mockCredentials: Credential[] = [
-  {
-    id: '1',
-    schemaId: 'university-degree',
-    schemaName: 'Bachelor of Science',
-    issuerName: 'Stanford University',
-    issuerDID: 'did:web:stanford.edu',
-    issuedAt: '2024-05-15T10:00:00Z',
-    claimed: true,
-    claimedAt: '2024-05-16T14:20:00Z',
-    revoked: false,
-  },
-  {
-    id: '2',
-    schemaId: 'professional-cert',
-    schemaName: 'AWS Solutions Architect',
-    issuerName: 'Amazon Web Services',
-    issuerDID: 'did:web:aws.amazon.com',
-    issuedAt: '2024-08-20T09:00:00Z',
-    claimed: true,
-    claimedAt: '2024-08-21T11:30:00Z',
-    revoked: false,
-  },
-  {
-    id: '3',
-    schemaId: 'course-completion',
-    schemaName: 'Machine Learning Fundamentals',
-    issuerName: 'Coursera',
-    issuerDID: 'did:web:coursera.org',
-    issuedAt: '2024-10-10T16:45:00Z',
-    claimed: true,
-    claimedAt: '2024-10-11T08:00:00Z',
-    revoked: false,
-  },
-  {
-    id: '4',
-    schemaId: 'employee-id',
-    schemaName: 'Employee Verification',
-    issuerName: 'TechCorp Inc.',
-    issuerDID: 'did:web:techcorp.com',
-    issuedAt: '2024-01-05T11:00:00Z',
-    claimed: true,
-    claimedAt: '2024-01-06T09:30:00Z',
-    revoked: true,
-  },
-];
+const fetcher = (url: string) => fetch(url).then(res => res.json());
 
 export default function WalletPage() {
   const [searchQuery, setSearchQuery] = React.useState('');
   const [activeTab, setActiveTab] = React.useState('all');
   const [viewMode, setViewMode] = React.useState<'grid' | 'list'>('grid');
 
+  // Build the API URL based on active tab
+  const statusParam = activeTab === 'active' ? 'claimed' : activeTab === 'revoked' ? 'revoked' : '';
+  const apiUrl = `/api/recipient/credentials${statusParam ? `?status=${statusParam}` : ''}`;
+  
+  const { data, error, isLoading } = useSWR(apiUrl, fetcher);
+  const { data: unclaimedData } = useSWR('/api/recipient/credentials?status=unclaimed', fetcher);
+
+  const credentials = data?.data?.credentials || [];
+  const counts = data?.data?.counts || { total: 0, claimed: 0, revoked: 0, unclaimed: 0 };
+  const unclaimedCount = unclaimedData?.data?.counts?.unclaimed || 0;
+
   const filteredCredentials = React.useMemo(() => {
-    let filtered = mockCredentials;
-
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        c =>
-          c.schemaName.toLowerCase().includes(query) ||
-          c.issuerName.toLowerCase().includes(query)
-      );
-    }
-
-    if (activeTab === 'active') {
-      filtered = filtered.filter(c => !c.revoked);
-    } else if (activeTab === 'revoked') {
-      filtered = filtered.filter(c => c.revoked);
-    }
-
-    return filtered;
-  }, [searchQuery, activeTab]);
-
-  const activeCount = mockCredentials.filter(c => !c.revoked).length;
-  const revokedCount = mockCredentials.filter(c => c.revoked).length;
+    if (!searchQuery) return credentials;
+    const query = searchQuery.toLowerCase();
+    return credentials.filter(
+      (c: any) =>
+        c.schemaName?.toLowerCase().includes(query) ||
+        c.schemaId?.toLowerCase().includes(query)
+    );
+  }, [credentials, searchQuery]);
 
   return (
     <div className="space-y-6">
@@ -121,7 +61,9 @@ export default function WalletPage() {
               <Link href="/wallet/inbox">
                 <Inbox className="mr-2 h-4 w-4" />
                 Inbox
-                <Badge className="ml-2" variant="default">2</Badge>
+                {unclaimedCount > 0 && (
+                  <Badge className="ml-2" variant="default">{unclaimedCount}</Badge>
+                )}
               </Link>
             </Button>
           </div>
@@ -136,7 +78,11 @@ export default function WalletPage() {
               <Award className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{mockCredentials.length}</p>
+              {isLoading ? (
+                <Skeleton className="h-8 w-16" />
+              ) : (
+                <p className="text-2xl font-bold">{counts.total}</p>
+              )}
               <p className="text-sm text-muted-foreground">Total Credentials</p>
             </div>
           </CardContent>
@@ -147,7 +93,11 @@ export default function WalletPage() {
               <Award className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{activeCount}</p>
+              {isLoading ? (
+                <Skeleton className="h-8 w-16" />
+              ) : (
+                <p className="text-2xl font-bold">{counts.claimed}</p>
+              )}
               <p className="text-sm text-muted-foreground">Active</p>
             </div>
           </CardContent>
@@ -158,8 +108,12 @@ export default function WalletPage() {
               <Share2 className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-2xl font-bold">5</p>
-              <p className="text-sm text-muted-foreground">Times Shared</p>
+              {isLoading ? (
+                <Skeleton className="h-8 w-16" />
+              ) : (
+                <p className="text-2xl font-bold">{counts.unclaimed}</p>
+              )}
+              <p className="text-sm text-muted-foreground">Unclaimed</p>
             </div>
           </CardContent>
         </Card>
@@ -178,9 +132,9 @@ export default function WalletPage() {
           </div>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList>
-              <TabsTrigger value="all">All ({mockCredentials.length})</TabsTrigger>
-              <TabsTrigger value="active">Active ({activeCount})</TabsTrigger>
-              <TabsTrigger value="revoked">Revoked ({revokedCount})</TabsTrigger>
+              <TabsTrigger value="all">All ({counts.total})</TabsTrigger>
+              <TabsTrigger value="active">Active ({counts.claimed})</TabsTrigger>
+              <TabsTrigger value="revoked">Revoked ({counts.revoked})</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
@@ -203,7 +157,20 @@ export default function WalletPage() {
       </div>
 
       {/* Credentials */}
-      {filteredCredentials.length === 0 ? (
+      {isLoading ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-40 w-full" />
+          ))}
+        </div>
+      ) : error ? (
+        <Card>
+          <CardContent className="p-6 flex items-center justify-center gap-2 text-destructive">
+            <AlertCircle className="h-5 w-5" />
+            Failed to load credentials. Please try again.
+          </CardContent>
+        </Card>
+      ) : filteredCredentials.length === 0 ? (
         <EmptyState
           icon={<Award className="h-8 w-8" />}
           title="No credentials found"
@@ -216,20 +183,40 @@ export default function WalletPage() {
         />
       ) : viewMode === 'grid' ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredCredentials.map((credential) => (
+          {filteredCredentials.map((credential: any) => (
             <CredentialCard
               key={credential.id}
-              credential={credential}
+              credential={{
+                id: credential.id,
+                schemaId: credential.schemaId,
+                schemaName: credential.schemaName,
+                issuerName: '', // TODO: Fetch from batch/issuer
+                issuerDID: '',
+                issuedAt: credential.issuedAt,
+                claimed: credential.claimed,
+                claimedAt: credential.claimedAt,
+                revoked: credential.revoked,
+              }}
               onClick={() => {}}
             />
           ))}
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredCredentials.map((credential) => (
+          {filteredCredentials.map((credential: any) => (
             <CredentialCard
               key={credential.id}
-              credential={credential}
+              credential={{
+                id: credential.id,
+                schemaId: credential.schemaId,
+                schemaName: credential.schemaName,
+                issuerName: '',
+                issuerDID: '',
+                issuedAt: credential.issuedAt,
+                claimed: credential.claimed,
+                claimedAt: credential.claimedAt,
+                revoked: credential.revoked,
+              }}
               variant="compact"
               onClick={() => {}}
             />

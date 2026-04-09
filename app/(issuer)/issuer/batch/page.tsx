@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
+import useSWR from 'swr';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, type SelectOption } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Upload,
   FileSpreadsheet,
@@ -18,20 +20,13 @@ import {
   AlertCircle,
   Loader2,
   Send,
-  Eye,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-const schemaOptions: SelectOption[] = [
-  { value: 'university-degree', label: 'University Degree' },
-  { value: 'employee-id', label: 'Employee ID' },
-  { value: 'course-completion', label: 'Course Completion' },
-  { value: 'professional-cert', label: 'Professional Certificate' },
-];
+const fetcher = (url: string) => fetch(url).then(res => res.json());
 
 interface ParsedRow {
-  name: string;
-  email: string;
+  recipientEmail: string;
   data: Record<string, string>;
   valid: boolean;
   error?: string;
@@ -39,13 +34,67 @@ interface ParsedRow {
 
 export default function BatchIssuePage() {
   const router = useRouter();
+  const { data: schemasData, isLoading: schemasLoading } = useSWR('/api/issuer/schemas', fetcher);
+  
   const [selectedSchema, setSelectedSchema] = React.useState('');
-  const [batchName, setBatchName] = React.useState('');
   const [file, setFile] = React.useState<File | null>(null);
   const [parsedData, setParsedData] = React.useState<ParsedRow[]>([]);
   const [isUploading, setIsUploading] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const schemas = schemasData?.data?.schemas || [];
+  const schemaOptions: SelectOption[] = schemas.map((s: any) => ({
+    value: s.id,
+    label: s.name,
+  }));
+
+  const parseCSV = (content: string): ParsedRow[] => {
+    const lines = content.trim().split('\n');
+    if (lines.length < 2) return [];
+
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    const emailIndex = headers.findIndex(h => h === 'email' || h === 'recipientemail');
+    
+    if (emailIndex === -1) {
+      return [{
+        recipientEmail: '',
+        data: {},
+        valid: false,
+        error: 'CSV must have an "email" column',
+      }];
+    }
+
+    const dataHeaders = headers.filter((_, i) => i !== emailIndex);
+
+    return lines.slice(1).map((line, idx) => {
+      const values = line.split(',').map(v => v.trim());
+      const email = values[emailIndex];
+      
+      // Basic email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return {
+          recipientEmail: email,
+          data: {},
+          valid: false,
+          error: 'Invalid email format',
+        };
+      }
+
+      const data: Record<string, string> = {};
+      dataHeaders.forEach((header, i) => {
+        const valueIndex = i >= emailIndex ? i + 1 : i;
+        data[header] = values[valueIndex] || '';
+      });
+
+      return {
+        recipientEmail: email,
+        data,
+        valid: true,
+      };
+    });
+  };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -54,26 +103,22 @@ export default function BatchIssuePage() {
     setFile(selectedFile);
     setIsUploading(true);
 
-    // Simulate parsing CSV
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Mock parsed data
-    const mockData: ParsedRow[] = [
-      { name: 'Alice Johnson', email: 'alice@example.com', data: { degree: 'Bachelor of Science', major: 'Computer Science', graduationDate: '2024-05-15' }, valid: true },
-      { name: 'Bob Smith', email: 'bob@example.com', data: { degree: 'Master of Science', major: 'Data Science', graduationDate: '2024-05-15' }, valid: true },
-      { name: 'Carol Davis', email: 'carol@example.com', data: { degree: 'Bachelor of Arts', major: 'Psychology', graduationDate: '2024-05-15' }, valid: true },
-      { name: 'David Wilson', email: 'invalid-email', data: { degree: 'Bachelor of Science', major: 'Physics', graduationDate: '2024-05-15' }, valid: false, error: 'Invalid email format' },
-      { name: 'Eve Brown', email: 'eve@example.com', data: { degree: 'PhD', major: 'Mathematics', graduationDate: '2024-05-15' }, valid: true },
-    ];
-
-    setParsedData(mockData);
-    setIsUploading(false);
+    try {
+      const content = await selectedFile.text();
+      const parsed = parseCSV(content);
+      setParsedData(parsed);
+    } catch (error) {
+      toast.error('Failed to parse CSV file');
+      setParsedData([]);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile && droppedFile.type === 'text/csv') {
+    if (droppedFile && (droppedFile.type === 'text/csv' || droppedFile.name.endsWith('.csv'))) {
       const input = fileInputRef.current;
       if (input) {
         const dataTransfer = new DataTransfer();
@@ -96,18 +141,49 @@ export default function BatchIssuePage() {
   const invalidCount = parsedData.filter(r => !r.valid).length;
 
   const handleSubmit = async () => {
+    if (!selectedSchema || validCount === 0) return;
+    
     setIsSubmitting(true);
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    toast.success('Batch issued successfully!', {
-      description: `${validCount} credentials have been issued.`,
-    });
-    
-    router.push('/issuer/credentials');
+    try {
+      const validCredentials = parsedData
+        .filter(r => r.valid)
+        .map(r => ({
+          recipientEmail: r.recipientEmail,
+          data: r.data,
+        }));
+
+      const response = await fetch('/api/issuer/issue/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          schemaId: selectedSchema,
+          credentials: validCredentials,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to issue credentials');
+      }
+
+      const result = await response.json();
+      
+      toast.success('Batch issued successfully!', {
+        description: `${result.data.credentials.length} credentials have been issued.`,
+      });
+      
+      router.push('/issuer/credentials');
+    } catch (error: any) {
+      toast.error('Failed to issue credentials', {
+        description: error.message,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const downloadTemplate = () => {
-    const csv = 'name,email,degree,major,graduation_date\nJohn Doe,john@example.com,Bachelor of Science,Computer Science,2024-05-15';
+    const csv = 'email,degree,major,graduation_date\njohn@example.com,Bachelor of Science,Computer Science,2024-05-15';
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -136,20 +212,16 @@ export default function BatchIssuePage() {
           <div className="pl-11 space-y-4">
             <div className="space-y-2">
               <Label>Credential Schema</Label>
-              <Select
-                value={selectedSchema}
-                onValueChange={setSelectedSchema}
-                options={schemaOptions}
-                placeholder="Select a schema"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Batch Name</Label>
-              <Input
-                placeholder="e.g., Spring 2024 Graduates"
-                value={batchName}
-                onChange={(e) => setBatchName(e.target.value)}
-              />
+              {schemasLoading ? (
+                <Skeleton className="h-10 w-full" />
+              ) : (
+                <Select
+                  value={selectedSchema}
+                  onValueChange={setSelectedSchema}
+                  options={schemaOptions}
+                  placeholder="Select a schema"
+                />
+              )}
             </div>
           </div>
         </CardContent>
@@ -248,15 +320,13 @@ export default function BatchIssuePage() {
             
             <div className="pl-11">
               <div className="rounded-xl border border-border overflow-hidden">
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto max-h-96">
                   <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-border bg-muted/50">
+                    <thead className="sticky top-0 bg-muted/80 backdrop-blur">
+                      <tr className="border-b border-border">
                         <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Status</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Name</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Email</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Degree</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Major</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Data Fields</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -272,10 +342,10 @@ export default function BatchIssuePage() {
                               </div>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-sm">{row.name}</td>
-                          <td className="px-4 py-3 text-sm text-muted-foreground">{row.email}</td>
-                          <td className="px-4 py-3 text-sm">{row.data.degree}</td>
-                          <td className="px-4 py-3 text-sm">{row.data.major}</td>
+                          <td className="px-4 py-3 text-sm">{row.recipientEmail}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">
+                            {Object.keys(row.data).length} fields
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -294,7 +364,7 @@ export default function BatchIssuePage() {
         </Button>
         <Button
           onClick={handleSubmit}
-          disabled={validCount === 0 || !selectedSchema || !batchName || isSubmitting}
+          disabled={validCount === 0 || !selectedSchema || isSubmitting}
         >
           {isSubmitting ? (
             <>
