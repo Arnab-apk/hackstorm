@@ -20,7 +20,6 @@ import {
   User,
   Award,
   Loader2,
-  AlertTriangle,
   RefreshCw,
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
@@ -42,6 +41,7 @@ interface VerificationResult {
     onChain: boolean;
     notRevoked: boolean;
     notExpired: boolean;
+    issuerTrusted: boolean;
   };
   error?: string;
 }
@@ -51,36 +51,71 @@ export default function VerifyScanPage() {
   const [verificationUrl, setVerificationUrl] = React.useState('');
   const [result, setResult] = React.useState<VerificationResult>({ status: 'idle' });
 
+  const extractTokenFromUrl = (url: string): string | null => {
+    // Handle URLs like https://app.com/verify/token123 or just token123
+    const match = url.match(/\/verify\/([a-zA-Z0-9_-]+)$/);
+    if (match) return match[1];
+    
+    // If no URL pattern, treat the input as the token itself
+    if (/^[a-zA-Z0-9_-]+$/.test(url)) return url;
+    
+    return null;
+  };
+
   const handleVerify = async () => {
+    const token = extractTokenFromUrl(verificationUrl.trim());
+    
+    if (!token) {
+      setResult({
+        status: 'invalid',
+        error: 'Invalid verification URL or token format',
+      });
+      return;
+    }
+
     setResult({ status: 'verifying' });
     
-    // Simulate verification
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Mock successful result
-    setResult({
-      status: 'valid',
-      credential: {
-        type: 'University Degree',
-        holder: 'Alice Johnson',
-        issuer: 'Stanford University',
-        issuerDID: 'did:web:stanford.edu',
-        issuedAt: '2024-05-15T10:00:00Z',
-        claims: {
-          'Degree Type': 'Bachelor of Science',
-          'Major': 'Computer Science',
-          'Graduation Date': 'May 15, 2024',
-          'GPA': '3.85',
-          'Honors': 'Magna Cum Laude',
+    try {
+      const response = await fetch(`/api/verify/${token}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        setResult({
+          status: 'invalid',
+          error: data.error || 'Verification failed',
+        });
+        return;
+      }
+
+      // Map API response to our result format
+      const isRevoked = data.revoked;
+      const isValid = data.valid && !isRevoked;
+
+      setResult({
+        status: isRevoked ? 'revoked' : (isValid ? 'valid' : 'invalid'),
+        credential: data.credential ? {
+          type: data.schemaName || data.credential.type?.[1] || 'Credential',
+          holder: data.credential.credentialSubject?.name || 'Unknown',
+          issuer: data.issuer?.name || 'Unknown Issuer',
+          issuerDID: data.credential.issuer || data.issuer?.did || '',
+          issuedAt: data.credential.issuanceDate || data.issuedAt,
+          claims: data.disclosedFields || {},
+        } : undefined,
+        checks: {
+          signature: data.signatureValid ?? false,
+          onChain: data.anchoredOnChain ?? false,
+          notRevoked: !data.revoked,
+          notExpired: !data.expired,
+          issuerTrusted: data.issuerTrusted ?? false,
         },
-      },
-      checks: {
-        signature: true,
-        onChain: true,
-        notRevoked: true,
-        notExpired: true,
-      },
-    });
+        error: data.error,
+      });
+    } catch (error: any) {
+      setResult({
+        status: 'invalid',
+        error: error.message || 'Verification failed',
+      });
+    }
   };
 
   const handleReset = () => {
@@ -105,7 +140,7 @@ export default function VerifyScanPage() {
       case 'valid':
         return { title: 'Valid Credential', description: 'This credential is authentic and has not been revoked.' };
       case 'invalid':
-        return { title: 'Invalid Credential', description: 'This credential could not be verified.' };
+        return { title: 'Invalid Credential', description: result.error || 'This credential could not be verified.' };
       case 'revoked':
         return { title: 'Revoked Credential', description: 'This credential has been revoked by the issuer.' };
       default:
@@ -142,14 +177,14 @@ export default function VerifyScanPage() {
               <TabsContent value="url">
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label>Verification URL</Label>
+                    <Label>Verification URL or Token</Label>
                     <Input
-                      placeholder="https://credvault.app/verify/..."
+                      placeholder="https://app.com/verify/... or share_xxx"
                       value={verificationUrl}
                       onChange={(e) => setVerificationUrl(e.target.value)}
                     />
                     <p className="text-xs text-muted-foreground">
-                      Paste the verification URL from the credential holder.
+                      Paste the verification URL or share token from the credential holder.
                     </p>
                   </div>
                   <Button
@@ -234,6 +269,7 @@ export default function VerifyScanPage() {
                     { key: 'onChain', label: 'On-Chain Anchor', value: result.checks.onChain },
                     { key: 'notRevoked', label: 'Not Revoked', value: result.checks.notRevoked },
                     { key: 'notExpired', label: 'Not Expired', value: result.checks.notExpired },
+                    { key: 'issuerTrusted', label: 'Issuer Trusted', value: result.checks.issuerTrusted },
                   ].map((check) => (
                     <div
                       key={check.key}
@@ -281,39 +317,45 @@ export default function VerifyScanPage() {
                   <Building className="h-5 w-5 text-muted-foreground" />
                   <div className="flex-1">
                     <p className="font-medium">{result.credential.issuer}</p>
-                    <p className="text-xs text-muted-foreground font-mono">
+                    <p className="text-xs text-muted-foreground font-mono truncate">
                       {result.credential.issuerDID}
                     </p>
                   </div>
-                  <Badge variant="success">
-                    <Shield className="mr-1 h-3 w-3" />
-                    Verified Issuer
-                  </Badge>
+                  {result.checks?.issuerTrusted && (
+                    <Badge variant="success">
+                      <Shield className="mr-1 h-3 w-3" />
+                      Verified
+                    </Badge>
+                  )}
                 </div>
 
                 {/* Claims */}
-                <div>
-                  <h5 className="text-sm font-medium text-muted-foreground mb-3">
-                    Credential Claims
-                  </h5>
-                  <div className="space-y-2">
-                    {Object.entries(result.credential.claims).map(([key, value]) => (
-                      <div
-                        key={key}
-                        className="flex justify-between py-2 border-b border-border last:border-0"
-                      >
-                        <span className="text-muted-foreground">{key}</span>
-                        <span className="font-medium">{value}</span>
-                      </div>
-                    ))}
+                {Object.keys(result.credential.claims).length > 0 && (
+                  <div>
+                    <h5 className="text-sm font-medium text-muted-foreground mb-3">
+                      Disclosed Claims
+                    </h5>
+                    <div className="space-y-2">
+                      {Object.entries(result.credential.claims).map(([key, value]) => (
+                        <div
+                          key={key}
+                          className="flex justify-between py-2 border-b border-border last:border-0"
+                        >
+                          <span className="text-muted-foreground capitalize">{key}</span>
+                          <span className="font-medium">{String(value)}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Issue Date */}
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Clock className="h-4 w-4" />
-                  <span>Issued on {formatDate(result.credential.issuedAt)}</span>
-                </div>
+                {result.credential.issuedAt && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Clock className="h-4 w-4" />
+                    <span>Issued on {formatDate(result.credential.issuedAt)}</span>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}

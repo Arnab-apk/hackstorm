@@ -4,17 +4,18 @@ import useSWR from 'swr';
 
 interface Credential {
   id: string;
-  batchId: string;
+  batchId?: string;
   schemaId: string;
   schemaName: string;
-  recipientEmail: string;
-  recipientAddress: string;
+  recipientEmail?: string;
+  recipientAddress?: string;
   claimed: boolean;
   claimedAt: string | null;
   revoked: boolean;
   revokedAt: string | null;
+  revokedReason?: string | null;
   issuedAt: string;
-  ipfsCID: string;
+  ipfsCID?: string;
   credentialJSON?: Record<string, unknown>;
 }
 
@@ -61,13 +62,30 @@ export function useRecipientCredentials(status?: 'claimed' | 'unclaimed' | 'revo
   return useSWR<CredentialsResponse>(url, fetcher);
 }
 
+interface CredentialDetail {
+  credential: Credential;
+  credentialJSON?: Record<string, unknown>;
+  schema?: Record<string, unknown>;
+  verification?: {
+    exists: boolean;
+    revoked: boolean;
+    issuerAddress: string | null;
+    timestamp: number | null;
+  };
+  batch?: {
+    merkleRoot: string;
+    txHash: string;
+    issuerDID: string;
+  };
+}
+
 // Hook for single credential
 export function useCredential(id: string, role: 'issuer' | 'recipient') {
   const url = role === 'issuer' 
     ? `/api/issuer/credentials/${id}`
     : `/api/recipient/credentials/${id}`;
   
-  return useSWR<{ credential: Credential }>(url, fetcher);
+  return useSWR<CredentialDetail>(url, fetcher);
 }
 
 // Hook for claiming credential

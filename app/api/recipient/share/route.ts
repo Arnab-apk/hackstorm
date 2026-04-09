@@ -24,9 +24,9 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 export async function POST(request: NextRequest) {
   try {
     const session = await requireAuth();
-    const body: CreateShareRequest = await request.json();
+    const body = await request.json();
 
-    const { credentialId, disclosedFields, expiresAt, maxViews } = body;
+    const { credentialId, disclosedFields, expiresAt, expiresInDays, maxViews } = body as CreateShareRequest & { expiresInDays?: number };
 
     if (!credentialId) {
       return badRequest('Credential ID is required');
@@ -79,13 +79,22 @@ export async function POST(request: NextRequest) {
     const shareToken = generateId('share');
     const shareTokensCollection = await getShareTokensCollection();
 
+    // Calculate expiry date
+    let expiryDate: Date | null = null;
+    if (expiresAt) {
+      expiryDate = new Date(expiresAt);
+    } else if (expiresInDays && expiresInDays > 0) {
+      expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + expiresInDays);
+    }
+
     const dbShareToken: DBShareToken = {
       _id: shareToken,
       credentialId,
       createdBy: session.address.toLowerCase(),
       disclosedFields: finalDisclosedFields,
       hiddenFields,
-      expiresAt: expiresAt ? new Date(expiresAt) : null,
+      expiresAt: expiryDate,
       maxViews: maxViews || null,
       currentViews: 0,
       createdAt: new Date(),

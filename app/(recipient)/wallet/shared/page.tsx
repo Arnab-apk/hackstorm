@@ -42,7 +42,7 @@ interface ShareToken {
 export default function SharedPage() {
   const { data, error, isLoading } = useSWR('/api/recipient/share', fetcher);
 
-  const shareTokens: ShareToken[] = data?.data?.shareTokens || [];
+  const shareTokens: ShareToken[] = data?.shareTokens || [];
 
   const getStatus = (token: ShareToken): 'active' | 'expired' | 'exhausted' => {
     if (token.isExpired) return 'expired';

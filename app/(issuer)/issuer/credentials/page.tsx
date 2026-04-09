@@ -58,8 +58,8 @@ export default function CredentialsPage() {
   const statusParam = activeTab !== 'all' ? `&status=${activeTab}` : '';
   const { data, error, isLoading, mutate } = useSWR(`/api/issuer/credentials?pageSize=50${statusParam}`, fetcher);
 
-  const credentials: Credential[] = data?.data?.credentials || [];
-  const total = data?.data?.total || 0;
+  const credentials: Credential[] = data?.credentials || [];
+  const total = data?.total || 0;
 
   const filteredCredentials = React.useMemo(() => {
     if (!searchQuery) return credentials;

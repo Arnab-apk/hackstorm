@@ -36,9 +36,9 @@ export default function WalletPage() {
   const { data, error, isLoading } = useSWR(apiUrl, fetcher);
   const { data: unclaimedData } = useSWR('/api/recipient/credentials?status=unclaimed', fetcher);
 
-  const credentials = data?.data?.credentials || [];
-  const counts = data?.data?.counts || { total: 0, claimed: 0, revoked: 0, unclaimed: 0 };
-  const unclaimedCount = unclaimedData?.data?.counts?.unclaimed || 0;
+  const credentials = data?.credentials || [];
+  const counts = data?.counts || { total: 0, claimed: 0, revoked: 0, unclaimed: 0 };
+  const unclaimedCount = unclaimedData?.counts?.unclaimed || 0;
 
   const filteredCredentials = React.useMemo(() => {
     if (!searchQuery) return credentials;

@@ -49,6 +49,7 @@ export default function CredentialDetailPage() {
   const [expiryDays, setExpiryDays] = useState<number>(7);
 
   const credential = data?.credential;
+  const credentialJSON = data?.credentialJSON;
 
   const handleClaim = async () => {
     setClaiming(true);
@@ -129,7 +130,7 @@ export default function CredentialDetailPage() {
     );
   }
 
-  const credentialData = credential.credentialJSON?.credentialSubject as Record<string, unknown> || {};
+  const credentialData = (credentialJSON?.credentialSubject || credential?.credentialJSON?.credentialSubject || {}) as Record<string, unknown>;
   const fields = Object.entries(credentialData).filter(([key]) => key !== 'id');
 
   // Initialize disclosed fields if empty
