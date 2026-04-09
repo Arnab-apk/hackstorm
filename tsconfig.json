@@ -26,7 +26,8 @@
         "./*"
       ]
     },
-    "target": "ES2017"
+    "target": "ES2017",
+    "rootDir": "."
   },
   "include": [
     "next-env.d.ts",
@@ -37,8 +38,6 @@
   ],
   "exclude": [
     "node_modules",
-    "contracts",
-    "scripts",
-    "hardhat.config.ts"
+    "contracts"
   ]
 }
