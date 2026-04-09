@@ -1,0 +1,38 @@
+{
+  "name": "decentralized-identity-backend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "compile:contracts": "hardhat compile",
+    "deploy:contracts": "hardhat run scripts/deploy-contract.ts --network polygon_amoy",
+    "generate:keys": "tsx scripts/generate-keys.ts"
+  },
+  "dependencies": {
+    "@noble/curves": "^1.4.0",
+    "@noble/ed25519": "^2.1.0",
+    "@noble/hashes": "^1.4.0",
+    "@web3auth/node-sdk": "^4.1.0",
+    "dotenv": "^17.4.1",
+    "jose": "^5.6.0",
+    "mongodb": "^6.8.0",
+    "multiformats": "^13.4.2",
+    "nanoid": "^5.0.7",
+    "next": "^14.2.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "viem": "^2.17.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@types/node": "^20.14.0",
+    "@types/react": "^18.3.0",
+    "hardhat": "^2.22.0",
+    "tsx": "^4.16.0",
+    "typescript": "^5.5.0"
+  }
+}
