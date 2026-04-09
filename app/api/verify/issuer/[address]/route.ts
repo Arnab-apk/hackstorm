@@ -26,10 +26,10 @@ export async function GET(
       return errorResponse('Invalid Ethereum address format', 400);
     }
 
-    // Look up issuer in MongoDB
+    // Look up issuer in MongoDB (case-insensitive)
     const issuersCollection = await getIssuersCollection();
     const issuer = await issuersCollection.findOne({ 
-      address: address.toLowerCase() 
+      address: { $regex: new RegExp(`^${address}$`, 'i') }
     });
 
     if (!issuer) {

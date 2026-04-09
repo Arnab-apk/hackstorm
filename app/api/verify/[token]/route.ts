@@ -114,8 +114,9 @@ export async function GET(
       const issuerAddress = anchorDetails?.issuerAddress;
       if (issuerAddress) {
         const issuersCollection = await getIssuersCollection();
+        // Use case-insensitive regex for address matching
         const issuer = await issuersCollection.findOne({ 
-          address: issuerAddress.toLowerCase() 
+          address: { $regex: new RegExp(`^${issuerAddress}$`, 'i') }
         });
         if (issuer && issuer.active) {
           issuerTrusted = true;

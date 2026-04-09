@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
 
     // Verify the anchor is on-chain
     const onChainBatch = await verifyBatchOnChain(merkleRoot);
-    if (!onChainBatch || onChainBatch.timestamp === BigInt(0)) {
+    if (!onChainBatch || !onChainBatch.exists) {
       return errorResponse('Anchor not found on-chain after transaction', 400);
     }
 
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
         $set: {
           anchorTxHash: txHash,
           anchorBlockNumber: Number(receipt.blockNumber),
-          anchorTimestamp: new Date(Number(onChainBatch.timestamp) * 1000),
+          anchorTimestamp: new Date(onChainBatch.timestamp * 1000),
           anchorStatus: 'confirmed',
         },
       }
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
       batchId,
       txHash,
       blockNumber: Number(receipt.blockNumber),
-      timestamp: new Date(Number(onChainBatch.timestamp) * 1000).toISOString(),
+      timestamp: new Date(onChainBatch.timestamp * 1000).toISOString(),
       message: 'Batch anchored successfully',
     });
 
