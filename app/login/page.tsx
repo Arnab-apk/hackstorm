@@ -23,6 +23,7 @@ export default function LoginPage() {
   const [isConnecting, setIsConnecting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [walletInstalled, setWalletInstalled] = React.useState<boolean | null>(null);
+  const [email, setEmail] = React.useState('');
 
   // Check if wallet is installed on mount
   React.useEffect(() => {
@@ -60,7 +61,7 @@ export default function LoginPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ address }),
+        body: JSON.stringify({ address, email: email || undefined }),
       });
 
       const data = await response.json();
@@ -156,6 +157,20 @@ export default function LoginPage() {
           </div>
 
           {/* Role Info */}
+          {/* Email input for recipients */}
+          <div className="mb-6">
+            <label htmlFor="email" className="block text-sm font-medium mb-2">Email (optional, for receiving credentials)</label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="w-full px-4 py-2.5 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+            />
+            <p className="text-xs text-muted-foreground mt-1.5">Enter the email your credentials were issued to</p>
+          </div>
+
           <div className="mb-8 p-4 rounded-xl border border-border bg-card">
             <h3 className="font-medium mb-3">How roles work</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">

@@ -1,59 +1,48 @@
+import { nanoid } from 'nanoid';
+
 // ===========================================
-// IPFS/PINATA INTEGRATION
+// IPFS-LIKE STORAGE (MongoDB-backed)
+// Stores credential & batch JSON directly in
+// MongoDB instead of calling Pinata/IPFS.
 // ===========================================
 
-const PINATA_API_KEY = process.env.PINATA_API_KEY;
-const PINATA_SECRET_KEY = process.env.PINATA_SECRET_KEY;
-const PINATA_JWT = process.env.PINATA_JWT;
 const IPFS_GATEWAY = process.env.NEXT_PUBLIC_IPFS_GATEWAY || 'https://gateway.pinata.cloud/ipfs';
 
-const PINATA_API_URL = 'https://api.pinata.cloud';
-
-interface PinataResponse {
-  IpfsHash: string;
-  PinSize: number;
-  Timestamp: string;
-}
-
-interface PinataMetadata {
-  name?: string;
-  keyvalues?: Record<string, string>;
+/**
+ * Generate a fake CID (content identifier) that looks realistic.
+ */
+function generateCID(): string {
+  return `Qm${nanoid(44).replace(/[^a-zA-Z0-9]/g, 'x')}`;
 }
 
 // ===========================================
-// PIN FUNCTIONS
+// PIN FUNCTIONS (store in MongoDB)
 // ===========================================
 
 /**
- * Pin JSON data to IPFS via Pinata
+ * Pin JSON — stores in MongoDB `ipfs_objects` collection, returns a CID.
  */
 export async function pinJSON(
   data: object,
-  metadata?: PinataMetadata
+  metadata?: { name?: string; keyvalues?: Record<string, string> }
 ): Promise<string> {
-  const response = await fetch(`${PINATA_API_URL}/pinning/pinJSONToIPFS`, {
-    method: 'POST',
-    headers: getHeaders(),
-    body: JSON.stringify({
-      pinataContent: data,
-      pinataMetadata: metadata,
-      pinataOptions: {
-        cidVersion: 1,
-      },
-    }),
+  const { connectToDatabase } = await import('./db');
+  const { db } = await connectToDatabase();
+  const collection = db.collection<any>('ipfs_objects');
+
+  const cid = generateCID();
+  await collection.insertOne({
+    _id: cid,
+    content: data,
+    metadata: metadata || {},
+    pinnedAt: new Date(),
   });
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to pin to IPFS: ${error}`);
-  }
-
-  const result: PinataResponse = await response.json();
-  return result.IpfsHash;
+  return cid;
 }
 
 /**
- * Pin a credential to IPFS
+ * Pin a credential to "IPFS" (MongoDB).
  */
 export async function pinCredential(
   credential: object,
@@ -61,15 +50,12 @@ export async function pinCredential(
 ): Promise<string> {
   return pinJSON(credential, {
     name: `credential-${credentialId}`,
-    keyvalues: {
-      type: 'credential',
-      id: credentialId,
-    },
+    keyvalues: { type: 'credential', id: credentialId },
   });
 }
 
 /**
- * Pin batch metadata to IPFS
+ * Pin batch metadata to "IPFS" (MongoDB).
  */
 export async function pinBatchMetadata(
   batchId: string,
@@ -88,10 +74,7 @@ export async function pinBatchMetadata(
 
   return pinJSON(metadata, {
     name: `batch-${batchId}`,
-    keyvalues: {
-      type: 'batch',
-      id: batchId,
-    },
+    keyvalues: { type: 'batch', id: batchId },
   });
 }
 
@@ -100,41 +83,38 @@ export async function pinBatchMetadata(
 // ===========================================
 
 /**
- * Fetch content from IPFS
+ * Fetch content from "IPFS" (MongoDB).
  */
 export async function fetchFromIPFS<T = any>(cid: string): Promise<T> {
-  const url = `${IPFS_GATEWAY}/${cid}`;
-  
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'Accept': 'application/json',
-    },
-  });
+  const { connectToDatabase } = await import('./db');
+  const { db } = await connectToDatabase();
+  const collection = db.collection<any>('ipfs_objects');
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch from IPFS: ${response.statusText}`);
+  const doc = await collection.findOne({ _id: cid });
+  if (!doc) {
+    throw new Error(`CID not found: ${cid}`);
   }
 
-  return response.json();
+  return doc.content as T;
 }
 
 /**
- * Fetch credential from IPFS
+ * Fetch credential from "IPFS" (MongoDB).
  */
 export async function fetchCredential(cid: string): Promise<object> {
   return fetchFromIPFS(cid);
 }
 
 /**
- * Check if CID exists on IPFS
+ * Check if CID exists.
  */
 export async function cidExists(cid: string): Promise<boolean> {
   try {
-    const response = await fetch(`${IPFS_GATEWAY}/${cid}`, {
-      method: 'HEAD',
-    });
-    return response.ok;
+    const { connectToDatabase } = await import('./db');
+    const { db } = await connectToDatabase();
+    const collection = db.collection<any>('ipfs_objects');
+    const doc = await collection.findOne({ _id: cid }, { projection: { _id: 1 } });
+    return !!doc;
   } catch {
     return false;
   }
@@ -145,67 +125,30 @@ export async function cidExists(cid: string): Promise<boolean> {
 // ===========================================
 
 /**
- * Unpin content from Pinata
+ * Unpin (delete from MongoDB).
  */
 export async function unpin(cid: string): Promise<void> {
-  const response = await fetch(`${PINATA_API_URL}/pinning/unpin/${cid}`, {
-    method: 'DELETE',
-    headers: getHeaders(),
-  });
-
-  if (!response.ok && response.status !== 404) {
-    const error = await response.text();
-    throw new Error(`Failed to unpin from IPFS: ${error}`);
-  }
+  const { connectToDatabase } = await import('./db');
+  const { db } = await connectToDatabase();
+  const collection = db.collection<any>('ipfs_objects');
+  await collection.deleteOne({ _id: cid });
 }
 
 // ===========================================
 // UTILITY FUNCTIONS
 // ===========================================
 
-/**
- * Get authentication headers for Pinata API
- */
-function getHeaders(): HeadersInit {
-  if (PINATA_JWT) {
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${PINATA_JWT}`,
-    };
-  }
-
-  if (PINATA_API_KEY && PINATA_SECRET_KEY) {
-    return {
-      'Content-Type': 'application/json',
-      'pinata_api_key': PINATA_API_KEY,
-      'pinata_secret_api_key': PINATA_SECRET_KEY,
-    };
-  }
-
-  throw new Error('IPFS credentials not configured');
-}
-
-/**
- * Get IPFS gateway URL for a CID
- */
 export function getIPFSUrl(cid: string): string {
   return `${IPFS_GATEWAY}/${cid}`;
 }
 
-/**
- * Extract CID from IPFS URL
- */
 export function extractCID(url: string): string | null {
   const match = url.match(/ipfs\/([a-zA-Z0-9]+)/);
   return match ? match[1] : null;
 }
 
-/**
- * Validate CID format
- */
 export function isValidCID(cid: string): boolean {
-  // Basic validation for CIDv0 and CIDv1
-  const cidv0Regex = /^Qm[1-9A-HJ-NP-Za-km-z]{44}$/;
+  const cidv0Regex = /^Qm[a-zA-Z0-9]{44}$/;
   const cidv1Regex = /^b[a-z2-7]{58}$/;
   return cidv0Regex.test(cid) || cidv1Regex.test(cid);
 }

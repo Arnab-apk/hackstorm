@@ -51,12 +51,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     // Get schema
     const schema = getSchema(credential.schemaId);
 
-    // Fetch full credential from IPFS
-    let credentialJSON = null;
-    try {
-      credentialJSON = await fetchFromIPFS(credential.ipfsCID);
-    } catch {
-      // IPFS fetch failed, continue without it
+    // Get credential JSON — prefer MongoDB, fallback to IPFS
+    let credentialJSON: any = credential.credentialJSON || null;
+    if (!credentialJSON && credential.ipfsCID) {
+      try {
+        credentialJSON = await fetchFromIPFS(credential.ipfsCID);
+      } catch {
+        // IPFS fetch failed, continue without it
+      }
     }
 
     // Verify on-chain status (simplified - only checks if anchored)

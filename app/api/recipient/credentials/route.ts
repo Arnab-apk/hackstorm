@@ -6,22 +6,28 @@ import { getSchema } from '@/lib/schemas';
 
 /**
  * GET /api/recipient/credentials
- * Get all credentials for the current user
+ * Get all credentials for the current user.
+ * Matches by wallet address OR by email (for email-issued credentials).
  */
 export async function GET(request: NextRequest) {
   try {
     const session = await requireAuth();
     const { searchParams } = new URL(request.url);
 
-    // Parse query params
-    const status = searchParams.get('status'); // 'unclaimed', 'claimed', 'revoked', 'all'
+    const status = searchParams.get('status');
     const page = parseInt(searchParams.get('page') || '1');
     const pageSize = parseInt(searchParams.get('pageSize') || '20');
 
+    // Match by wallet address OR email
+    const ownerMatch: any[] = [
+      { recipientAddress: session.address.toLowerCase() },
+    ];
+    if (session.email) {
+      ownerMatch.push({ recipientEmail: session.email.toLowerCase() });
+    }
+
     // Build filter
-    const filter: any = { 
-      recipientAddress: session.address.toLowerCase() 
-    };
+    const filter: any = { $or: ownerMatch };
 
     if (status === 'unclaimed') {
       filter.claimed = false;
@@ -32,11 +38,12 @@ export async function GET(request: NextRequest) {
     } else if (status === 'revoked') {
       filter.revoked = true;
     }
-    // 'all' or no status = no additional filter
 
-    // Get credentials
     const credentialsCollection = await getCredentialsCollection();
     const skip = (page - 1) * pageSize;
+
+    // Base owner filter for counts
+    const baseFilter = { $or: ownerMatch };
 
     const [credentials, total, counts] = await Promise.all([
       credentialsCollection
@@ -46,26 +53,13 @@ export async function GET(request: NextRequest) {
         .limit(pageSize)
         .toArray(),
       credentialsCollection.countDocuments(filter),
-      // Get counts for all statuses
       Promise.all([
-        credentialsCollection.countDocuments({ 
-          recipientAddress: session.address.toLowerCase(),
-          claimed: false,
-          revoked: false,
-        }),
-        credentialsCollection.countDocuments({ 
-          recipientAddress: session.address.toLowerCase(),
-          claimed: true,
-          revoked: false,
-        }),
-        credentialsCollection.countDocuments({ 
-          recipientAddress: session.address.toLowerCase(),
-          revoked: true,
-        }),
+        credentialsCollection.countDocuments({ ...baseFilter, claimed: false, revoked: false }),
+        credentialsCollection.countDocuments({ ...baseFilter, claimed: true, revoked: false }),
+        credentialsCollection.countDocuments({ ...baseFilter, revoked: true }),
       ]),
     ]);
 
-    // Enrich with schema info
     const enrichedCredentials = credentials.map(cred => {
       const schema = getSchema(cred.schemaId);
       return {

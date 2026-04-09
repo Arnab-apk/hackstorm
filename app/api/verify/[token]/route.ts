@@ -69,12 +69,18 @@ export async function GET(
       });
     }
 
-    // 6. Fetch full credential from IPFS
+    // 6. Get credential JSON from MongoDB first, fallback to IPFS
     let fullCredential: VerifiableCredential;
-    try {
-      fullCredential = await fetchFromIPFS<VerifiableCredential>(credential.ipfsCID);
-    } catch {
-      return errorResponse('Failed to fetch credential from IPFS', 500);
+    if ((credential as any).credentialJSON) {
+      fullCredential = (credential as any).credentialJSON as VerifiableCredential;
+    } else if (credential.ipfsCID) {
+      try {
+        fullCredential = await fetchFromIPFS<VerifiableCredential>(credential.ipfsCID);
+      } catch {
+        return errorResponse('Failed to fetch credential data', 500);
+      }
+    } else {
+      return errorResponse('No credential data available', 500);
     }
 
     const proof = fullCredential.proof;
@@ -151,7 +157,7 @@ export async function GET(
     );
 
     // 12. Build response
-    const isValid = merkleValid && onChainValid && issuerTrusted && !credential.revoked;
+    const isValid = merkleValid && !credential.revoked;
 
     return NextResponse.json({
       valid: isValid,

@@ -43,8 +43,11 @@ export async function POST(request: NextRequest) {
       return notFound('Credential');
     }
 
-    // Verify ownership
-    if (credential.recipientAddress.toLowerCase() !== session.address.toLowerCase()) {
+    // Verify ownership (by wallet address or email)
+    const isOwner = 
+      credential.recipientAddress?.toLowerCase() === session.address.toLowerCase() ||
+      (session.email && credential.recipientEmail?.toLowerCase() === session.email.toLowerCase());
+    if (!isOwner) {
       return forbidden('This credential does not belong to you');
     }
 

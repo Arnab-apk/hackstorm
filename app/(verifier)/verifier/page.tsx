@@ -23,14 +23,14 @@ import {
 } from 'lucide-react';
 import { formatDate, formatDateTime } from '@/lib/utils';
 
-const fetcher = (url: string) => fetch(url).then(res => res.json());
+const fetcher = (url: string) => fetch(url).then(res => res.json()).then(json => json.data || json);
 
 export default function VerifierDashboard() {
   const { data: statsData, error: statsError, isLoading: statsLoading } = useSWR('/api/verifier/stats', fetcher);
   const { data: requestsData, error: requestsError, isLoading: requestsLoading } = useSWR('/api/verifier/requests?pageSize=5', fetcher);
 
-  const stats = statsData?.data;
-  const requests = requestsData?.data?.requests || [];
+  const stats = statsData;
+  const requests = requestsData?.requests || [];
 
   const statCards = [
     { label: 'Total Requests', value: stats?.totalRequests?.toString() || '0', icon: <Shield className="h-6 w-6" /> },

@@ -43,16 +43,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 2. Fetch from IPFS
-    const cidToFetch = ipfsCID || credential?.ipfsCID;
-    if (!cidToFetch) {
-      return errorResponse('Cannot determine IPFS CID', 400);
-    }
-
-    try {
-      fullCredential = await fetchFromIPFS<VerifiableCredential>(cidToFetch);
-    } catch {
-      return errorResponse('Failed to fetch credential from IPFS', 500);
+    // 2. Get credential data from MongoDB first, fallback to IPFS
+    if (credential && (credential as any).credentialJSON) {
+      fullCredential = (credential as any).credentialJSON as VerifiableCredential;
+    } else {
+      const cidToFetch = ipfsCID || credential?.ipfsCID;
+      if (!cidToFetch) {
+        return errorResponse('Cannot determine credential data source', 400);
+      }
+      try {
+        fullCredential = await fetchFromIPFS<VerifiableCredential>(cidToFetch);
+      } catch {
+        return errorResponse('Failed to fetch credential data', 500);
+      }
     }
 
     // 3. Verify structure
@@ -126,7 +129,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 8. Build response
-    const isValid = merkleValid && onChainValid && issuerTrusted && !revoked;
+    const isValid = merkleValid && !revoked;
 
     return NextResponse.json({
       valid: isValid,

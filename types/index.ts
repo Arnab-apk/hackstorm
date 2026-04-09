@@ -110,6 +110,7 @@ export interface DBCredential {
   recipientAddress: string;
   recipientDID: string;
   schemaId: string;
+  credentialJSON?: Record<string, any>;
   claimed: boolean;
   claimedAt: Date | null;
   revoked: boolean;

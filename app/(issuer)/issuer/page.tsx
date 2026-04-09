@@ -23,16 +23,16 @@ import {
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 
-const fetcher = (url: string) => fetch(url).then(res => res.json());
+const fetcher = (url: string) => fetch(url).then(res => res.json()).then(json => json.data || json);
 
 export default function IssuerDashboard() {
   const { data: statsData, error: statsError, isLoading: statsLoading } = useSWR('/api/issuer/stats', fetcher);
   const { data: credentialsData, error: credentialsError, isLoading: credentialsLoading } = useSWR('/api/issuer/credentials?pageSize=3', fetcher);
   const { data: batchesData, error: batchesError, isLoading: batchesLoading } = useSWR('/api/issuer/batches?pageSize=3', fetcher);
 
-  const stats = statsData?.data;
-  const credentials = credentialsData?.data?.credentials || [];
-  const batches = batchesData?.data?.batches || [];
+  const stats = statsData;
+  const credentials = credentialsData?.credentials || [];
+  const batches = batchesData?.batches || [];
 
   const statCards = [
     { label: 'Total Issued', value: stats?.totalCredentials?.toString() || '0', icon: <Award className="h-6 w-6" /> },
@@ -183,7 +183,7 @@ export default function IssuerDashboard() {
                       className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors cursor-pointer"
                     >
                       <div>
-                        <p className="font-medium text-sm">{batch.name || `Batch ${batch._id.slice(0, 8)}`}</p>
+                        <p className="font-medium text-sm">{batch.name || `Batch ${(batch._id || '').slice(0, 8)}`}</p>
                         <p className="text-xs text-muted-foreground">
                           {batch.credentialCount} credentials
                         </p>

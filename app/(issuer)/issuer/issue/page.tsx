@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-const fetcher = (url: string) => fetch(url).then(res => res.json());
+const fetcher = (url: string) => fetch(url).then(res => res.json()).then(json => json.data || json);
 
 const steps = [
   { id: 1, title: 'Select Schema', icon: FileText },
@@ -102,7 +102,7 @@ export default function IssueSinglePage() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to issue credential');
+        throw new Error(result.error?.message || result.error || 'Failed to issue credential');
       }
       
       toast.success('Credential issued successfully!', {

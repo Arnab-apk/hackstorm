@@ -17,7 +17,6 @@ import {
 import { getSchema } from '@/lib/schemas';
 import { buildMerkleTree, getMerkleProof, hashCredential } from '@/lib/merkle';
 import { anchorBatch } from '@/lib/blockchain';
-import { pinCredential, pinBatchMetadata } from '@/lib/ipfs';
 import { predictAddressFromEmail } from '@/lib/auth';
 import { 
   getCredentialsCollection, 
@@ -26,35 +25,18 @@ import {
 import { notifyCredentialIssued } from '@/lib/notifications';
 import type { IssueBatchRequest, DBCredential, DBBatch } from '@/types';
 
-interface BatchCredentialInput {
-  recipientEmail: string;
-  data: Record<string, any>;
-}
-
-interface ProcessedCredential {
-  credentialId: string;
-  recipientEmail: string;
-  recipientAddress: string;
-  recipientDID: string;
-  unsignedCredential: any;
-  leafHash: string;
-}
-
 /**
  * POST /api/issuer/issue/batch
- * Issue multiple credentials in a batch
+ * Issue multiple credentials in a batch — stores everything in MongoDB.
  */
 export async function POST(request: NextRequest) {
   try {
     const session = await requireIssuer();
     const body: IssueBatchRequest = await request.json();
 
-    // Validate request
     const { schemaId, credentials } = body;
 
-    if (!schemaId) {
-      return badRequest('Schema ID is required');
-    }
+    if (!schemaId) return badRequest('Schema ID is required');
     if (!credentials || !Array.isArray(credentials) || credentials.length === 0) {
       return badRequest('At least one credential is required');
     }
@@ -62,11 +44,8 @@ export async function POST(request: NextRequest) {
       return badRequest('Maximum 1000 credentials per batch');
     }
 
-    // Get schema
     const schema = getSchema(schemaId);
-    if (!schema) {
-      return badRequest(`Invalid schema: ${schemaId}`);
-    }
+    if (!schema) return badRequest(`Invalid schema: ${schemaId}`);
 
     // Validate all credentials first
     const validationErrors: string[] = [];
@@ -89,6 +68,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Process all credentials
+    interface ProcessedCredential {
+      credentialId: string;
+      recipientEmail: string;
+      recipientAddress: string;
+      recipientDID: string;
+      unsignedCredential: any;
+      leafHash: string;
+    }
+
     const processedCredentials: ProcessedCredential[] = [];
 
     for (const cred of credentials) {
@@ -96,12 +84,7 @@ export async function POST(request: NextRequest) {
       const recipientAddress = await predictAddressFromEmail(cred.recipientEmail);
       const recipientDID = createDIDFromAddress(recipientAddress);
 
-      const unsignedCredential = buildCredential(
-        schema,
-        cred.data,
-        recipientDID
-      );
-
+      const unsignedCredential = buildCredential(schema, cred.data, recipientDID);
       const leafHash = hashCredential(unsignedCredential);
 
       processedCredentials.push({
@@ -114,27 +97,18 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Build merkle tree from all leaf hashes
+    // Build merkle tree
     const leafHashes = processedCredentials.map(c => c.leafHash);
     const merkleTree = buildMerkleTree(leafHashes);
 
-    // Anchor on blockchain
-    const { txHash, blockNumber } = await anchorBatch(
-      merkleTree.root,
-      credentials.length
-    );
+    // Mock anchor (no contract call)
+    const { txHash, blockNumber } = await anchorBatch(merkleTree.root, credentials.length);
 
-    // Generate batch ID
     const batchId = generateBatchId();
 
-    // Sign and pin all credentials
-    const signedCredentials: { 
-      credentialId: string;
-      recipientEmail: string;
-      recipientAddress: string;
-      ipfsCID: string;
-      leafIndex: number;
-    }[] = [];
+    // Sign all credentials and build DB records
+    const dbCredentials: DBCredential[] = [];
+    const resultCredentials: { id: string; recipientEmail: string; recipientAddress: string }[] = [];
 
     for (let i = 0; i < processedCredentials.length; i++) {
       const proc = processedCredentials[i];
@@ -146,52 +120,35 @@ export async function POST(request: NextRequest) {
         {
           txHash,
           chain: 'polygon',
-          contract: process.env.CREDENTIAL_REGISTRY_CONTRACT!,
+          contract: process.env.CREDENTIAL_REGISTRY_CONTRACT || '0x0',
         }
       );
 
-      const ipfsCID = await pinCredential(signedCredential, proc.credentialId);
-
-      signedCredentials.push({
-        credentialId: proc.credentialId,
+      dbCredentials.push({
+        _id: proc.credentialId,
+        batchId,
+        leafIndex: i,
+        leafHash: proc.leafHash,
+        ipfsCID: '',
         recipientEmail: proc.recipientEmail,
         recipientAddress: proc.recipientAddress,
-        ipfsCID,
-        leafIndex: i,
+        recipientDID: proc.recipientDID,
+        schemaId,
+        credentialJSON: signedCredential,
+        claimed: false,
+        claimedAt: null,
+        revoked: false,
+        revokedAt: null,
+        revokedReason: null,
+        issuedAt: new Date(),
+      });
+
+      resultCredentials.push({
+        id: proc.credentialId,
+        recipientEmail: proc.recipientEmail,
+        recipientAddress: proc.recipientAddress,
       });
     }
-
-    // Pin batch metadata to IPFS
-    const credentialCIDs = signedCredentials.map(c => c.ipfsCID);
-    const batchMetadataCID = await pinBatchMetadata(
-      batchId,
-      merkleTree.root,
-      credentialCIDs,
-      schemaId
-    );
-
-    // Store in database
-    const credentialsCollection = await getCredentialsCollection();
-    const batchesCollection = await getBatchesCollection();
-
-    // Create DB records for all credentials
-    const dbCredentials: DBCredential[] = signedCredentials.map((cred, index) => ({
-      _id: cred.credentialId,
-      batchId,
-      leafIndex: cred.leafIndex,
-      leafHash: processedCredentials[index].leafHash,
-      ipfsCID: cred.ipfsCID,
-      recipientEmail: cred.recipientEmail,
-      recipientAddress: cred.recipientAddress,
-      recipientDID: processedCredentials[index].recipientDID,
-      schemaId,
-      claimed: false,
-      claimedAt: null,
-      revoked: false,
-      revokedAt: null,
-      revokedReason: null,
-      issuedAt: new Date(),
-    }));
 
     const dbBatch: DBBatch = {
       _id: batchId,
@@ -201,21 +158,25 @@ export async function POST(request: NextRequest) {
       schemaId,
       credentialCount: credentials.length,
       merkleTree,
-      batchMetadataCID,
+      batchMetadataCID: '',
       anchorTxHash: txHash,
       anchorBlockNumber: blockNumber,
       createdAt: new Date(),
     };
+
+    // Store in MongoDB
+    const credentialsCollection = await getCredentialsCollection();
+    const batchesCollection = await getBatchesCollection();
 
     await Promise.all([
       credentialsCollection.insertMany(dbCredentials),
       batchesCollection.insertOne(dbBatch),
     ]);
 
-    // Create notifications for all recipients
+    // Notifications
     await Promise.all(
-      signedCredentials.map(cred =>
-        notifyCredentialIssued(cred.recipientAddress, cred.credentialId, schema.name)
+      processedCredentials.map(proc =>
+        notifyCredentialIssued(proc.recipientAddress, proc.credentialId, schema.name)
       )
     );
 
@@ -224,12 +185,7 @@ export async function POST(request: NextRequest) {
       batchId,
       merkleRoot: merkleTree.root,
       txHash,
-      credentials: signedCredentials.map(c => ({
-        id: c.credentialId,
-        recipientEmail: c.recipientEmail,
-        recipientAddress: c.recipientAddress,
-        ipfsCID: c.ipfsCID,
-      })),
+      credentials: resultCredentials,
     });
   } catch (error) {
     return handleError(error);

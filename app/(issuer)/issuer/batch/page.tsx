@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-const fetcher = (url: string) => fetch(url).then(res => res.json());
+const fetcher = (url: string) => fetch(url).then(res => res.json()).then(json => json.data || json);
 
 interface ParsedRow {
   recipientEmail: string;
@@ -43,7 +43,7 @@ export default function BatchIssuePage() {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  const schemas = schemasData?.data?.schemas || [];
+  const schemas = schemasData?.schemas || [];
   const schemaOptions: SelectOption[] = schemas.map((s: any) => ({
     value: s.id,
     label: s.name,
@@ -163,13 +163,14 @@ export default function BatchIssuePage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to issue credentials');
+        throw new Error(errorData.error?.message || errorData.error || 'Failed to issue credentials');
       }
 
       const result = await response.json();
+      const resultData = result.data || result;
       
       toast.success('Batch issued successfully!', {
-        description: `${result.data.credentials.length} credentials have been issued.`,
+        description: `${resultData.credentials?.length || validCount} credentials have been issued.`,
       });
       
       router.push('/issuer/credentials');

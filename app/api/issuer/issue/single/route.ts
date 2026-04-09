@@ -17,49 +17,35 @@ import {
 import { getSchema } from '@/lib/schemas';
 import { buildMerkleTree, getMerkleProof, hashCredential } from '@/lib/merkle';
 import { anchorBatch } from '@/lib/blockchain';
-import { pinCredential, pinBatchMetadata } from '@/lib/ipfs';
 import { predictAddressFromEmail } from '@/lib/auth';
 import { 
   getCredentialsCollection, 
   getBatchesCollection,
-  generateId 
 } from '@/lib/db';
 import { notifyCredentialIssued } from '@/lib/notifications';
 import type { IssueSingleRequest, DBCredential, DBBatch } from '@/types';
 
 /**
  * POST /api/issuer/issue/single
- * Issue a single credential
+ * Issue a single credential — stores everything in MongoDB.
  */
 export async function POST(request: NextRequest) {
   try {
     const session = await requireIssuer();
     const body: IssueSingleRequest = await request.json();
 
-    // Validate request
     const { schemaId, recipientEmail, credentialData, expirationDate } = body;
 
-    if (!schemaId) {
-      return badRequest('Schema ID is required');
-    }
-    if (!recipientEmail) {
-      return badRequest('Recipient email is required');
-    }
-    if (!credentialData) {
-      return badRequest('Credential data is required');
-    }
+    if (!schemaId) return badRequest('Schema ID is required');
+    if (!recipientEmail) return badRequest('Recipient email is required');
+    if (!credentialData) return badRequest('Credential data is required');
 
-    // Get schema
     const schema = getSchema(schemaId);
-    if (!schema) {
-      return badRequest(`Invalid schema: ${schemaId}`);
-    }
+    if (!schema) return badRequest(`Invalid schema: ${schemaId}`);
 
     // Validate credential data against schema
     const validation = validateCredentialData(schema, credentialData);
-    if (!validation.valid) {
-      return validationError(validation.errors);
-    }
+    if (!validation.valid) return validationError(validation.errors);
 
     // Predict recipient wallet address from email
     const recipientAddress = await predictAddressFromEmail(recipientEmail);
@@ -79,38 +65,24 @@ export async function POST(request: NextRequest) {
     const merkleTree = buildMerkleTree([leafHash]);
     const merkleProof = getMerkleProof(merkleTree, 0);
 
-    // Anchor on blockchain
-    const { txHash, blockNumber } = await anchorBatch(
-      merkleTree.root,
-      1
-    );
+    // Mock anchor (no contract call)
+    const { txHash, blockNumber } = await anchorBatch(merkleTree.root, 1);
 
-    // Sign credential with merkle proof and anchor data
+    // Sign credential
     const signedCredential = await signCredential(
       unsignedCredential,
       merkleProof,
       {
         txHash,
         chain: 'polygon',
-        contract: process.env.CREDENTIAL_REGISTRY_CONTRACT!,
+        contract: process.env.CREDENTIAL_REGISTRY_CONTRACT || '0x0',
       }
     );
-
-    // Pin to IPFS
-    const ipfsCID = await pinCredential(signedCredential, credentialId);
 
     // Generate batch ID
     const batchId = generateBatchId();
 
-    // Pin batch metadata to IPFS
-    const batchMetadataCID = await pinBatchMetadata(
-      batchId,
-      merkleTree.root,
-      [ipfsCID],
-      schemaId
-    );
-
-    // Store in database
+    // Store everything in MongoDB
     const credentialsCollection = await getCredentialsCollection();
     const batchesCollection = await getBatchesCollection();
 
@@ -119,11 +91,12 @@ export async function POST(request: NextRequest) {
       batchId,
       leafIndex: 0,
       leafHash,
-      ipfsCID,
+      ipfsCID: '', // no IPFS
       recipientEmail,
       recipientAddress,
       recipientDID,
       schemaId,
+      credentialJSON: signedCredential,
       claimed: false,
       claimedAt: null,
       revoked: false,
@@ -140,7 +113,7 @@ export async function POST(request: NextRequest) {
       schemaId,
       credentialCount: 1,
       merkleTree,
-      batchMetadataCID,
+      batchMetadataCID: '',
       anchorTxHash: txHash,
       anchorBlockNumber: blockNumber,
       createdAt: new Date(),
@@ -163,7 +136,6 @@ export async function POST(request: NextRequest) {
         id: credentialId,
         recipientEmail,
         recipientAddress,
-        ipfsCID,
       }],
     });
   } catch (error) {

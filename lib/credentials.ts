@@ -1,6 +1,14 @@
-import { sign } from '@noble/ed25519';
+import * as ed from '@noble/ed25519';
+import { sha512 } from '@noble/hashes/sha2.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { nanoid } from 'nanoid';
+
+// Configure ed25519 to use sha512 from @noble/hashes
+(ed.etc as any).sha512Sync = (...m: Uint8Array[]) => {
+  const h = sha512.create();
+  m.forEach(msg => h.update(msg));
+  return h.digest();
+};
 import type { 
   VerifiableCredential, 
   CredentialProof, 
@@ -107,7 +115,7 @@ async function signData(data: string): Promise<string> {
 
   const privateKey = hexToBytes(ISSUER_PRIVATE_KEY);
   const message = new TextEncoder().encode(data);
-  const signature = await sign(message, privateKey);
+  const signature = await ed.signAsync(message, privateKey);
   
   return bytesToHex(signature);
 }

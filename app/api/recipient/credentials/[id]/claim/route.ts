@@ -31,8 +31,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return notFound('Credential');
     }
 
-    // Verify ownership
-    if (credential.recipientAddress.toLowerCase() !== session.address.toLowerCase()) {
+    // Verify ownership (by wallet address or email)
+    const isOwner = 
+      credential.recipientAddress?.toLowerCase() === session.address.toLowerCase() ||
+      (session.email && credential.recipientEmail?.toLowerCase() === session.email.toLowerCase());
+    if (!isOwner) {
       return forbidden('This credential does not belong to you');
     }
 
@@ -41,12 +44,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return badRequest('Cannot claim a revoked credential');
     }
 
-    // Fetch full credential from IPFS
-    let credentialJSON = null;
-    try {
-      credentialJSON = await fetchFromIPFS(credential.ipfsCID);
-    } catch {
-      return badRequest('Failed to fetch credential from IPFS');
+    // Get credential JSON from MongoDB first, fallback to IPFS
+    let credentialJSON: any = credential.credentialJSON || null;
+    if (!credentialJSON && credential.ipfsCID) {
+      try {
+        credentialJSON = await fetchFromIPFS(credential.ipfsCID);
+      } catch {
+        // continue without it
+      }
     }
 
     // If already claimed, just return the credential

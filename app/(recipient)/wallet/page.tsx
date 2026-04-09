@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { PageHeader } from '@/components/shared/page-header';
 import { CredentialCard } from '@/components/shared/credential-card';
@@ -22,9 +23,10 @@ import {
   AlertCircle,
 } from 'lucide-react';
 
-const fetcher = (url: string) => fetch(url).then(res => res.json());
+const fetcher = (url: string) => fetch(url).then(res => res.json()).then(json => json.data || json);
 
 export default function WalletPage() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = React.useState('');
   const [activeTab, setActiveTab] = React.useState('all');
   const [viewMode, setViewMode] = React.useState<'grid' | 'list'>('grid');
@@ -197,7 +199,7 @@ export default function WalletPage() {
                 claimedAt: credential.claimedAt,
                 revoked: credential.revoked,
               }}
-              onClick={() => {}}
+              onClick={() => router.push(`/wallet/credentials/${credential.id}`)}
             />
           ))}
         </div>
@@ -218,7 +220,7 @@ export default function WalletPage() {
                 revoked: credential.revoked,
               }}
               variant="compact"
-              onClick={() => {}}
+              onClick={() => router.push(`/wallet/credentials/${credential.id}`)}
             />
           ))}
         </div>

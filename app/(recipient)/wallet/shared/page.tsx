@@ -23,7 +23,7 @@ import {
 import { formatDate } from '@/lib/utils';
 import { toast } from 'sonner';
 
-const fetcher = (url: string) => fetch(url).then(res => res.json());
+const fetcher = (url: string) => fetch(url).then(res => res.json()).then(json => json.data || json);
 
 interface ShareToken {
   id: string;
