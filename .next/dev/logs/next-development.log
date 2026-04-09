@@ -32,3 +32,5 @@
 {"timestamp":"00:12:21.026","source":"Server","level":"LOG","message":"✓ Compiled in 76ms"}
 {"timestamp":"00:15:04.171","source":"Server","level":"LOG","message":"  Reload env: .env.development.local"}
 {"timestamp":"00:15:39.543","source":"Server","level":"LOG","message":"  Reload env: .env.development.local"}
+{"timestamp":"00:17:32.585","source":"Server","level":"LOG","message":"  Reload env: .env.development.local"}
+{"timestamp":"00:23:30.316","source":"Server","level":"LOG","message":"  Reload env: .env.development.local"}

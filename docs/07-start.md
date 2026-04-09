@@ -158,18 +158,7 @@ CREDENTIAL_REGISTRY_CONTRACT=0x1234567890abcdef...
 
 Copy the contract address to `.env.local`.
 
-#### Register Issuer on Contract
-
-After deploying, register the issuer wallet:
-
-1. Go to [Polygonscan Amoy](https://amoy.polygonscan.com/)
-2. Find your contract
-3. Go to "Write Contract" tab
-4. Connect your deployer wallet
-5. Call `registerIssuer`:
-   - `issuerAddress`: Your issuer wallet address
-   - `did`: `did:web:your-app.vercel.app`
-   - `name`: `Demo University`
+> **Note:** The contract is now minimal - it only stores merkle roots for credential batches. Issuer management and revocation are handled in MongoDB for gas efficiency.
 
 ---
 
@@ -189,7 +178,33 @@ VERIFIER_WALLET_ADDRESS=0x... (from verifier-demo@gmail.com login)
 
 ---
 
-### Step 7: Configure Session Secret
+### Step 7: Register Issuer in MongoDB
+
+After getting the issuer wallet address, register it in MongoDB:
+
+```bash
+pnpm tsx scripts/register-issuer.ts
+```
+
+Or manually insert via MongoDB Compass/Atlas:
+
+```javascript
+db.issuers.insertOne({
+  _id: "issuer-1",
+  address: "0x742d35Cc...", // Your ISSUER_WALLET_ADDRESS
+  did: "did:web:localhost",
+  name: "Demo University",
+  active: true,
+  registeredAt: new Date(),
+  updatedAt: new Date()
+})
+```
+
+This registers the issuer as trusted in the system. Only trusted issuers can have their credentials verified.
+
+---
+
+### Step 8: Configure Session Secret
 
 Generate a secure random string (32+ characters):
 
@@ -399,8 +414,9 @@ User sees wrong dashboard (e.g., issuer sees recipient view).
 | Generate Keys | `pnpm generate:keys` | Generate Ed25519 issuer keys |
 | Compile Contracts | `pnpm compile:contracts` | Compile Solidity contracts |
 | Deploy Contracts | `pnpm deploy:contracts` | Deploy to Polygon Amoy |
-| Setup Database | `pnpm tsx scripts/setup-database.ts` | Create MongoDB indexes |
-| Seed Demo Data | `pnpm tsx scripts/seed-demo-data.ts` | Add sample data |
+| Setup Database | `pnpm setup:db` | Create MongoDB indexes |
+| Register Issuer | `pnpm register:issuer` | Register issuer in MongoDB |
+| Seed Demo Data | `pnpm seed:demo` | Add sample data |
 
 ---
 
