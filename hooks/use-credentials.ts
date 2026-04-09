@@ -34,7 +34,8 @@ const fetcher = async (url: string) => {
   if (!res.ok) {
     throw new Error('Failed to fetch credentials');
   }
-  return res.json();
+  const json = await res.json();
+  return json.data || json;
 };
 
 // Hook for issuer credentials

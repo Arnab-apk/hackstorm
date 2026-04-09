@@ -1,3 +1,0 @@
-{
-  "/(recipient)/wallet/requests/[id]/page": "app/(recipient)/wallet/requests/[id]/page.js"
-}

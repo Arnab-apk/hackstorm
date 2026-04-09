@@ -23,14 +23,22 @@ const fetcher = async (url: string) => {
     const error = new Error('Failed to fetch');
     throw error;
   }
-  return res.json();
+  const json = await res.json();
+  return json.data || json;
 };
 
 export function useAuth() {
-  const { data, error, isLoading, mutate } = useSWR<{ user: User | null }>('/api/auth/session', fetcher, {
+  const { data, error, isLoading, mutate } = useSWR<{ address: string; did: string; role: string; email?: string } | null>('/api/auth/session', fetcher, {
     revalidateOnFocus: false,
     shouldRetryOnError: false,
   });
+
+  const user: User | null = data?.address ? {
+    walletAddress: data.address,
+    did: data.did,
+    email: data.email,
+    role: data.role as User['role'],
+  } : null;
 
   const login = useCallback(async (idToken: string, provider: string) => {
     try {
@@ -55,16 +63,16 @@ export function useAuth() {
   const logout = useCallback(async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
-      await mutate({ user: null }, false);
+      await mutate(null, false);
     } catch (err) {
       console.error('Logout error:', err);
     }
   }, [mutate]);
 
   return {
-    user: data?.user || null,
+    user,
     isLoading,
-    isAuthenticated: !!data?.user,
+    isAuthenticated: !!user,
     error: error?.message || null,
     login,
     logout,

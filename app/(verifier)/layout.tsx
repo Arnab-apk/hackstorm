@@ -26,7 +26,7 @@ const bottomNavItems = [
   { label: 'Help', href: '/verifier/help', icon: <HelpCircle className="h-5 w-5" /> },
 ];
 
-const fetcher = (url: string) => fetch(url).then(res => res.json());
+const fetcher = (url: string) => fetch(url).then(res => res.json()).then(json => json.data || json);
 
 export default function VerifierLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();

@@ -66,10 +66,13 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || 'Login failed. Please try again.');
+        setError(data.error?.message || data.error || 'Login failed. Please try again.');
         setIsConnecting(false);
         return;
       }
+
+      // The API wraps responses in { success, data: { role, address, ... } }
+      const loginData = data.data || data;
 
       // Redirect based on role
       const routes: Record<string, string> = {
@@ -78,7 +81,7 @@ export default function LoginPage() {
         verifier: '/verifier',
       };
 
-      const redirectPath = routes[data.role] || '/wallet';
+      const redirectPath = routes[loginData.role] || '/wallet';
       router.push(redirectPath);
     } catch (err) {
       console.error('Wallet connection error:', err);

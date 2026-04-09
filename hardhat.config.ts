@@ -33,6 +33,14 @@ const config: HardhatUserConfig = {
         : [],
     },
   },
+  etherscan: {
+    apiKey: {
+      polygonAmoy: process.env.POLYGONSCAN_API_KEY || "",
+    },
+  },
+  sourcify: {
+    enabled: true,
+  },
   paths: {
     sources: "./contracts",
     tests: "./test",

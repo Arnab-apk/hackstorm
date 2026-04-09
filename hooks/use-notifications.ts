@@ -17,7 +17,8 @@ const fetcher = async (url: string) => {
   if (!res.ok) {
     throw new Error('Failed to fetch notifications');
   }
-  return res.json();
+  const json = await res.json();
+  return json.data || json;
 };
 
 export function useNotifications(role: 'recipient' | 'verifier') {

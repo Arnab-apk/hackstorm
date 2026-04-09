@@ -147,7 +147,7 @@ export default function IssuerCredentialDetailPage() {
             </div>
             <div className="flex items-center gap-2">
               <span className="font-mono text-sm">
-                {credential.recipientAddress.slice(0, 10)}...{credential.recipientAddress.slice(-8)}
+                {credential.recipientAddress?.slice(0, 10)}...{credential.recipientAddress?.slice(-8)}
               </span>
               <Button variant="ghost" size="icon" className="h-6 w-6" onClick={copyAddress}>
                 {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}

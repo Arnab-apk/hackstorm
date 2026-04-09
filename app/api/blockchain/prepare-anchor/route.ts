@@ -40,8 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     const txData = await prepareAnchorTransaction(
-      merkleRoot as `0x${string}`,
-      credentialCount
+      merkleRoot as `0x${string}`
     );
 
     return NextResponse.json({
