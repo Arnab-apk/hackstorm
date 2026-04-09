@@ -12,7 +12,7 @@ import {
 } from '@/lib/db';
 import { getSchema } from '@/lib/schemas';
 import { fetchFromIPFS } from '@/lib/ipfs';
-import { verifyCredentialStatus } from '@/lib/blockchain';
+import { verifyBatch } from '@/lib/blockchain';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -59,13 +59,16 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       // IPFS fetch failed, continue without it
     }
 
-    // Verify on-chain status
+    // Verify on-chain status (simplified - only checks if anchored)
     let onChainStatus = null;
     try {
-      onChainStatus = await verifyCredentialStatus(
-        batch.merkleRoot,
-        credential.leafIndex
-      );
+      const onChainData = await verifyBatch(batch.merkleRoot);
+      onChainStatus = {
+        exists: onChainData !== null && onChainData.exists,
+        revoked: credential.revoked, // Revocation is now MongoDB-only
+        issuerAddress: onChainData?.issuer || null,
+        timestamp: onChainData?.timestamp || null,
+      };
     } catch {
       // On-chain verification failed, continue without it
     }

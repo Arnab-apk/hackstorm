@@ -7,6 +7,7 @@ import type {
   DBVerificationResponse,
   DBVerifier,
   DBNotification,
+  DBIssuer,
 } from '@/types';
 
 // ===========================================
@@ -84,6 +85,11 @@ export async function getNotificationsCollection(): Promise<Collection<DBNotific
   return db.collection<DBNotification>('notifications');
 }
 
+export async function getIssuersCollection(): Promise<Collection<DBIssuer>> {
+  const { db } = await connectToDatabase();
+  return db.collection<DBIssuer>('issuers');
+}
+
 // ===========================================
 // DATABASE INITIALIZATION
 // ===========================================
@@ -131,6 +137,12 @@ export async function initializeDatabase(): Promise<void> {
   await notifications.createIndex({ userId: 1 });
   await notifications.createIndex({ userId: 1, read: 1 });
   await notifications.createIndex({ createdAt: -1 });
+
+  // Create indexes for issuers collection
+  const issuers = db.collection('issuers');
+  await issuers.createIndex({ address: 1 }, { unique: true });
+  await issuers.createIndex({ did: 1 }, { unique: true });
+  await issuers.createIndex({ active: 1 });
 
   console.log('Database indexes created successfully');
 }

@@ -7,11 +7,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase } from '@/lib/db';
+import { getDatabase, getIssuersCollection } from '@/lib/db';
 import { fetchFromIPFS } from '@/lib/ipfs';
 import { verifyMerkleProof } from '@/lib/merkle';
-import { verifyBatchOnChain, isIssuerTrusted, getIssuerDetails } from '@/lib/blockchain';
-import { successResponse, errorResponse } from '@/lib/response';
+import { verifyBatch } from '@/lib/blockchain';
+import { errorResponse } from '@/lib/response';
 import type { ShareToken, CredentialDocument, VerifiableCredential } from '@/types';
 
 export async function GET(
@@ -55,7 +55,7 @@ export async function GET(
       return errorResponse('Credential not found', 404);
     }
 
-    // 5. Check revocation
+    // 5. Check revocation (from MongoDB)
     if (credential.revoked) {
       return NextResponse.json({
         valid: false,
@@ -73,7 +73,7 @@ export async function GET(
     let fullCredential: VerifiableCredential;
     try {
       fullCredential = await fetchFromIPFS<VerifiableCredential>(credential.ipfsCID);
-    } catch (error) {
+    } catch {
       return errorResponse('Failed to fetch credential from IPFS', 500);
     }
 
@@ -90,16 +90,16 @@ export async function GET(
       proof.merkleRoot
     );
 
-    // 8. Verify on-chain anchor
+    // 8. Verify on-chain anchor (only checks merkle root exists)
     let onChainValid = false;
     let anchorDetails = null;
     try {
-      const batchData = await verifyBatchOnChain(proof.merkleRoot);
-      onChainValid = batchData !== null && batchData.timestamp > 0;
+      const batchData = await verifyBatch(proof.merkleRoot);
+      onChainValid = batchData !== null && batchData.exists;
       if (batchData) {
         anchorDetails = {
           txHash: proof.anchorTransactionHash,
-          blockNumber: batchData.timestamp,
+          timestamp: batchData.timestamp,
           issuerAddress: batchData.issuer,
         };
       }
@@ -107,15 +107,23 @@ export async function GET(
       console.error('On-chain verification failed:', error);
     }
 
-    // 9. Verify issuer is trusted
+    // 9. Verify issuer is trusted (from MongoDB)
     let issuerTrusted = false;
     let issuerDetails = null;
     try {
       const issuerAddress = anchorDetails?.issuerAddress;
       if (issuerAddress) {
-        issuerTrusted = await isIssuerTrusted(issuerAddress);
-        if (issuerTrusted) {
-          issuerDetails = await getIssuerDetails(issuerAddress);
+        const issuersCollection = await getIssuersCollection();
+        // Use case-insensitive regex for address matching
+        const issuer = await issuersCollection.findOne({ 
+          address: { $regex: new RegExp(`^${issuerAddress}$`, 'i') }
+        });
+        if (issuer && issuer.active) {
+          issuerTrusted = true;
+          issuerDetails = {
+            did: issuer.did,
+            name: issuer.name,
+          };
         }
       }
     } catch (error) {
@@ -128,13 +136,10 @@ export async function GET(
 
     for (const [key, value] of Object.entries(credentialSubject)) {
       if (key === 'id') {
-        // Always include the subject DID
         disclosedSubject[key] = value;
       } else if (shareToken.disclosedFields.includes(key)) {
-        // Show actual value
         disclosedSubject[key] = value;
       } else if (shareToken.hiddenFields.includes(key)) {
-        // Show masked value
         disclosedSubject[key] = '••••••••';
       }
     }
@@ -162,10 +167,7 @@ export async function GET(
         anchoredOnChain: onChainValid,
         anchorDetails,
         issuerTrusted,
-        issuerDetails: issuerDetails ? {
-          did: issuerDetails.did,
-          name: issuerDetails.name,
-        } : null,
+        issuerDetails,
         revoked: credential.revoked,
       },
       shareInfo: {

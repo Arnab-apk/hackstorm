@@ -11,7 +11,7 @@ import {
   getCredentialsCollection,
 } from '@/lib/db';
 import { getSchema } from '@/lib/schemas';
-import { getBatch as getBatchFromChain } from '@/lib/blockchain';
+import { verifyBatch } from '@/lib/blockchain';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     // Get on-chain batch info
     let onChainBatch = null;
     try {
-      onChainBatch = await getBatchFromChain(batch.merkleRoot);
+      onChainBatch = await verifyBatch(batch.merkleRoot);
     } catch {
       // On-chain fetch failed, continue without it
     }

@@ -195,6 +195,16 @@ export interface DBNotification {
   createdAt: Date;
 }
 
+export interface DBIssuer {
+  _id: string;
+  address: string;
+  did: string;
+  name: string;
+  active: boolean;
+  registeredAt: Date;
+  updatedAt: Date;
+}
+
 // Backward-compatible aliases used by existing route handlers.
 export type CredentialDocument = DBCredential;
 export type ShareToken = DBShareToken;

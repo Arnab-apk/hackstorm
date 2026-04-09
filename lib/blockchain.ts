@@ -11,7 +11,6 @@ import {
 import { polygonAmoy } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
 import { CREDENTIAL_REGISTRY_ABI } from './contract-abi';
-import type { TrustedIssuer } from '@/types';
 
 // ===========================================
 // CONFIGURATION
@@ -71,82 +70,12 @@ export function getWalletClient(): WalletClient {
 // ===========================================
 
 /**
- * Check if an address is a trusted issuer
+ * Verify a batch exists on-chain and get its details
  */
-export async function isIssuerTrusted(issuerAddress: string): Promise<boolean> {
-  const client = getPublicClient();
-  
-  const result = await client.readContract({
-    address: CONTRACT_ADDRESS,
-    abi: CREDENTIAL_REGISTRY_ABI,
-    functionName: 'isIssuerTrusted',
-    args: [issuerAddress as `0x${string}`],
-  });
-  
-  return result as boolean;
-}
-
-/**
- * Get issuer details
- */
-export async function getIssuer(issuerAddress: string): Promise<TrustedIssuer | null> {
-  const client = getPublicClient();
-  
-  try {
-    const result = await client.readContract({
-      address: CONTRACT_ADDRESS,
-      abi: CREDENTIAL_REGISTRY_ABI,
-      functionName: 'getIssuer',
-      args: [issuerAddress as `0x${string}`],
-    }) as {
-      did: string;
-      name: string;
-      active: boolean;
-      registeredAt: bigint;
-    };
-    
-    if (!result.active && result.registeredAt === BigInt(0)) {
-      return null;
-    }
-    
-    return {
-      address: issuerAddress,
-      did: result.did,
-      name: result.name,
-      active: result.active,
-      registeredAt: Number(result.registeredAt),
-    };
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Check if a batch exists
- */
-export async function batchExists(merkleRoot: string): Promise<boolean> {
-  const client = getPublicClient();
-  
-  const result = await client.readContract({
-    address: CONTRACT_ADDRESS,
-    abi: CREDENTIAL_REGISTRY_ABI,
-    functionName: 'batchExistsCheck',
-    args: [merkleRoot as `0x${string}`],
-  });
-  
-  return result as boolean;
-}
-
-/**
- * Get batch details
- */
-export async function getBatch(merkleRoot: string): Promise<{
-  merkleRoot: string;
-  issuer: string;
-  issuerDID: string;
-  credentialCount: number;
-  timestamp: number;
+export async function verifyBatch(merkleRoot: string): Promise<{
   exists: boolean;
+  issuer: string;
+  timestamp: number;
 } | null> {
   const client = getPublicClient();
   
@@ -154,28 +83,19 @@ export async function getBatch(merkleRoot: string): Promise<{
     const result = await client.readContract({
       address: CONTRACT_ADDRESS,
       abi: CREDENTIAL_REGISTRY_ABI,
-      functionName: 'getBatch',
+      functionName: 'verify',
       args: [merkleRoot as `0x${string}`],
-    }) as {
-      merkleRoot: string;
-      issuer: string;
-      issuerDID: string;
-      credentialCount: bigint;
-      timestamp: bigint;
-      exists: boolean;
-    };
+    }) as [boolean, string, bigint];
     
-    if (!result.exists) {
+    // First element is the exists flag
+    if (!result[0]) {
       return null;
     }
     
     return {
-      merkleRoot: result.merkleRoot,
-      issuer: result.issuer,
-      issuerDID: result.issuerDID,
-      credentialCount: Number(result.credentialCount),
-      timestamp: Number(result.timestamp),
-      exists: result.exists,
+      exists: result[0],
+      issuer: result[1],
+      timestamp: Number(result[2]),
     };
   } catch {
     return null;
@@ -183,78 +103,11 @@ export async function getBatch(merkleRoot: string): Promise<{
 }
 
 /**
- * Check if a credential is revoked
+ * Check if a batch exists (simple boolean check)
  */
-export async function isCredentialRevoked(
-  merkleRoot: string, 
-  leafIndex: number
-): Promise<boolean> {
-  const client = getPublicClient();
-  
-  const result = await client.readContract({
-    address: CONTRACT_ADDRESS,
-    abi: CREDENTIAL_REGISTRY_ABI,
-    functionName: 'isCredentialRevoked',
-    args: [merkleRoot as `0x${string}`, BigInt(leafIndex)],
-  });
-  
-  return result as boolean;
-}
-
-/**
- * Get revocation details
- */
-export async function getRevocationDetails(
-  merkleRoot: string,
-  leafIndex: number
-): Promise<{ revoked: boolean; revokedAt: number; reason: string }> {
-  const client = getPublicClient();
-  
-  const result = await client.readContract({
-    address: CONTRACT_ADDRESS,
-    abi: CREDENTIAL_REGISTRY_ABI,
-    functionName: 'getRevocationDetails',
-    args: [merkleRoot as `0x${string}`, BigInt(leafIndex)],
-  }) as {
-    revoked: boolean;
-    revokedAt: bigint;
-    reason: string;
-  };
-  
-  return {
-    revoked: result.revoked,
-    revokedAt: Number(result.revokedAt),
-    reason: result.reason,
-  };
-}
-
-/**
- * Verify full credential status
- */
-export async function verifyCredentialStatus(
-  merkleRoot: string,
-  leafIndex: number
-): Promise<{
-  exists: boolean;
-  revoked: boolean;
-  issuerTrusted: boolean;
-  issuerDID: string;
-}> {
-  const client = getPublicClient();
-  
-  const result = await client.readContract({
-    address: CONTRACT_ADDRESS,
-    abi: CREDENTIAL_REGISTRY_ABI,
-    functionName: 'verifyCredentialStatus',
-    args: [merkleRoot as `0x${string}`, BigInt(leafIndex)],
-  }) as readonly [boolean, boolean, boolean, string];
-  
-  return {
-    exists: result[0],
-    revoked: result[1],
-    issuerTrusted: result[2],
-    issuerDID: result[3],
-  };
+export async function batchExists(merkleRoot: string): Promise<boolean> {
+  const result = await verifyBatch(merkleRoot);
+  return result !== null && result.exists;
 }
 
 // ===========================================
@@ -262,14 +115,14 @@ export async function verifyCredentialStatus(
 // ===========================================
 
 /**
- * Anchor a batch of credentials
+ * Anchor a batch of credentials (stores merkle root on-chain)
  */
 export async function anchorBatch(
   merkleRoot: string,
-  credentialCount: number
+  _credentialCount: number // kept for API compatibility, not used by contract
 ): Promise<{ txHash: Hash; blockNumber: number }> {
   const wallet = getWalletClient();
-  const publicClient = getPublicClient();
+  const client = getPublicClient();
   
   const hash = await wallet.writeContract({
     account: wallet.account!,
@@ -277,10 +130,10 @@ export async function anchorBatch(
     address: CONTRACT_ADDRESS,
     abi: CREDENTIAL_REGISTRY_ABI,
     functionName: 'anchorBatch',
-    args: [merkleRoot as `0x${string}`, BigInt(credentialCount)],
+    args: [merkleRoot as `0x${string}`],
   });
   
-  const receipt: TransactionReceipt = await publicClient.waitForTransactionReceipt({ 
+  const receipt: TransactionReceipt = await client.waitForTransactionReceipt({ 
     hash,
     confirmations: 1,
   });
@@ -289,101 +142,6 @@ export async function anchorBatch(
     txHash: hash,
     blockNumber: Number(receipt.blockNumber),
   };
-}
-
-/**
- * Revoke a credential
- */
-export async function revokeCredentialOnChain(
-  merkleRoot: string,
-  leafIndex: number,
-  reason: string
-): Promise<Hash> {
-  const wallet = getWalletClient();
-  const publicClient = getPublicClient();
-  
-  const hash = await wallet.writeContract({
-    account: wallet.account!,
-    chain: polygonAmoyConfig,
-    address: CONTRACT_ADDRESS,
-    abi: CREDENTIAL_REGISTRY_ABI,
-    functionName: 'revokeCredential',
-    args: [merkleRoot as `0x${string}`, BigInt(leafIndex), reason],
-  });
-  
-  await publicClient.waitForTransactionReceipt({ hash, confirmations: 1 });
-  
-  return hash;
-}
-
-/**
- * Unrevoke a credential
- */
-export async function unrevokeCredentialOnChain(
-  merkleRoot: string,
-  leafIndex: number
-): Promise<Hash> {
-  const wallet = getWalletClient();
-  const publicClient = getPublicClient();
-  
-  const hash = await wallet.writeContract({
-    account: wallet.account!,
-    chain: polygonAmoyConfig,
-    address: CONTRACT_ADDRESS,
-    abi: CREDENTIAL_REGISTRY_ABI,
-    functionName: 'unrevokeCredential',
-    args: [merkleRoot as `0x${string}`, BigInt(leafIndex)],
-  });
-  
-  await publicClient.waitForTransactionReceipt({ hash, confirmations: 1 });
-  
-  return hash;
-}
-
-/**
- * Register a new issuer (owner only)
- */
-export async function registerIssuer(
-  issuerAddress: string,
-  did: string,
-  name: string
-): Promise<Hash> {
-  const wallet = getWalletClient();
-  const publicClient = getPublicClient();
-  
-  const hash = await wallet.writeContract({
-    account: wallet.account!,
-    chain: polygonAmoyConfig,
-    address: CONTRACT_ADDRESS,
-    abi: CREDENTIAL_REGISTRY_ABI,
-    functionName: 'registerIssuer',
-    args: [issuerAddress as `0x${string}`, did, name],
-  });
-  
-  await publicClient.waitForTransactionReceipt({ hash, confirmations: 1 });
-  
-  return hash;
-}
-
-/**
- * Revoke an issuer (owner only)
- */
-export async function revokeIssuer(issuerAddress: string): Promise<Hash> {
-  const wallet = getWalletClient();
-  const publicClient = getPublicClient();
-  
-  const hash = await wallet.writeContract({
-    account: wallet.account!,
-    chain: polygonAmoyConfig,
-    address: CONTRACT_ADDRESS,
-    abi: CREDENTIAL_REGISTRY_ABI,
-    functionName: 'revokeIssuer',
-    args: [issuerAddress as `0x${string}`],
-  });
-  
-  await publicClient.waitForTransactionReceipt({ hash, confirmations: 1 });
-  
-  return hash;
 }
 
 // ===========================================
@@ -418,21 +176,16 @@ export async function getTransactionReceipt(txHash: Hash): Promise<TransactionRe
   }
 }
 
-// ===========================================
-// LEGACY COMPATIBILITY HELPERS
-// ===========================================
-
 /**
- * Build unsigned transaction data for frontend wallet signing.
+ * Build unsigned transaction data for frontend wallet signing
  */
 export async function prepareAnchorTransaction(
-  merkleRoot: `0x${string}`,
-  credentialCount: number
+  merkleRoot: `0x${string}`
 ): Promise<{ to: `0x${string}`; data: `0x${string}`; chainId: number }> {
   const data = encodeFunctionData({
     abi: CREDENTIAL_REGISTRY_ABI,
     functionName: 'anchorBatch',
-    args: [merkleRoot, BigInt(credentialCount)],
+    args: [merkleRoot],
   });
 
   return {
@@ -443,7 +196,7 @@ export async function prepareAnchorTransaction(
 }
 
 /**
- * Wait for a transaction to be confirmed.
+ * Wait for a transaction to be confirmed
  */
 export async function waitForTransaction(txHash: `0x${string}`): Promise<TransactionReceipt> {
   const client = getPublicClient();
@@ -454,57 +207,8 @@ export async function waitForTransaction(txHash: `0x${string}`): Promise<Transac
 }
 
 /**
- * Verify that a batch root is anchored on chain.
+ * Verify that a batch root is anchored on chain (alias for verifyBatch)
  */
-export async function verifyBatchOnChain(merkleRoot: string): Promise<{
-  merkleRoot: string;
-  issuer: string;
-  issuerDID: string;
-  credentialCount: bigint;
-  timestamp: bigint;
-  exists: boolean;
-} | null> {
-  const client = getPublicClient();
-
-  try {
-    const result = await client.readContract({
-      address: CONTRACT_ADDRESS,
-      abi: CREDENTIAL_REGISTRY_ABI,
-      functionName: 'getBatch',
-      args: [merkleRoot as `0x${string}`],
-    }) as {
-      merkleRoot: string;
-      issuer: string;
-      issuerDID: string;
-      credentialCount: bigint;
-      timestamp: bigint;
-      exists: boolean;
-    };
-
-    if (!result.exists) {
-      return null;
-    }
-
-    return {
-      merkleRoot: result.merkleRoot,
-      issuer: result.issuer,
-      issuerDID: result.issuerDID,
-      credentialCount: result.credentialCount,
-      timestamp: result.timestamp,
-      exists: result.exists,
-    };
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Legacy alias kept for older routes.
- */
-export async function getIssuerDetails(issuerAddress: string): Promise<TrustedIssuer> {
-  const issuer = await getIssuer(issuerAddress);
-  if (!issuer) {
-    throw new Error('Issuer not found');
-  }
-  return issuer;
+export async function verifyBatchOnChain(merkleRoot: string) {
+  return verifyBatch(merkleRoot);
 }

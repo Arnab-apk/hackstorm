@@ -15,7 +15,7 @@ import {
   generateId,
 } from '@/lib/db';
 import { fetchFromIPFS } from '@/lib/ipfs';
-import { verifyCredentialStatus } from '@/lib/blockchain';
+import { verifyBatch } from '@/lib/blockchain';
 import { processZKPClaims } from '@/lib/zkp';
 import { 
   notifyRequestApproved, 
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return badRequest('Credential type does not match request');
     }
 
-    // Check if revoked
+    // Check if revoked (from MongoDB)
     if (credential.revoked) {
       return badRequest('Cannot use a revoked credential');
     }
@@ -139,23 +139,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return badRequest('Credential batch not found');
     }
 
-    // Verify on-chain status
+    // Verify on-chain status (simplified - only checks if anchored)
     let onChainStatus;
     try {
-      onChainStatus = await verifyCredentialStatus(
-        batch.merkleRoot,
-        credential.leafIndex
-      );
+      onChainStatus = await verifyBatch(batch.merkleRoot);
     } catch {
       return badRequest('Failed to verify credential on-chain');
     }
 
-    if (!onChainStatus.exists) {
+    if (!onChainStatus || !onChainStatus.exists) {
       return badRequest('Credential not found on-chain');
-    }
-
-    if (onChainStatus.revoked) {
-      return badRequest('Credential has been revoked on-chain');
     }
 
     // Process ZKP claims
@@ -174,7 +167,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       merkleProofValid: true, // Already verified via on-chain check
       anchoredOnChain: onChainStatus.exists,
       anchorTxHash: batch.anchorTxHash,
-      notRevoked: !onChainStatus.revoked,
+      notRevoked: !credential.revoked, // Revocation from MongoDB
       respondedAt: new Date(),
     };
 

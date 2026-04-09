@@ -1,1 +1,11 @@
-{}
+{
+  "/(issuer)/issuer/batch/page": "app/(issuer)/issuer/batch/page.js",
+  "/(issuer)/issuer/credentials/page": "app/(issuer)/issuer/credentials/page.js",
+  "/(issuer)/issuer/issue/page": "app/(issuer)/issuer/issue/page.js",
+  "/(issuer)/issuer/page": "app/(issuer)/issuer/page.js",
+  "/(recipient)/wallet/inbox/page": "app/(recipient)/wallet/inbox/page.js",
+  "/(recipient)/wallet/page": "app/(recipient)/wallet/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/login/page": "app/login/page.js",
+  "/page": "app/page.js"
+}

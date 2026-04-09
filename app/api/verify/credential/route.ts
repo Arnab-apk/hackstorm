@@ -7,11 +7,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase } from '@/lib/db';
+import { getDatabase, getIssuersCollection, getBatchesCollection } from '@/lib/db';
 import { fetchFromIPFS } from '@/lib/ipfs';
 import { verifyMerkleProof } from '@/lib/merkle';
-import { verifyBatchOnChain, isIssuerTrusted, getIssuerDetails } from '@/lib/blockchain';
-import { successResponse, errorResponse } from '@/lib/response';
+import { verifyBatch } from '@/lib/blockchain';
+import { errorResponse } from '@/lib/response';
 import type { CredentialDocument, VerifiableCredential } from '@/types';
 
 interface VerifyCredentialRequest {
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
 
     try {
       fullCredential = await fetchFromIPFS<VerifiableCredential>(cidToFetch);
-    } catch (error) {
+    } catch {
       return errorResponse('Failed to fetch credential from IPFS', 500);
     }
 
@@ -67,46 +67,49 @@ export async function POST(request: NextRequest) {
 
     // 4. Verify merkle proof
     const merkleValid = verifyMerkleProof(
-      credential?.leafHash || '', // Will be computed from credential if not in DB
+      credential?.leafHash || '',
       proof.merkleProof,
       proof.proofDirections,
       proof.merkleRoot
     );
 
-    // 5. Verify on-chain anchor
+    // 5. Verify on-chain anchor (only checks if merkle root exists)
     let onChainValid = false;
     let anchorDetails = null;
     try {
-      const batchData = await verifyBatchOnChain(proof.merkleRoot);
-      onChainValid = batchData !== null && batchData.timestamp > 0;
+      const batchData = await verifyBatch(proof.merkleRoot);
+      onChainValid = batchData !== null && batchData.exists;
       if (batchData) {
         anchorDetails = {
           merkleRoot: proof.merkleRoot,
           txHash: proof.anchorTransactionHash,
           chain: proof.anchorChain,
           issuerAddress: batchData.issuer,
-          timestamp: new Date(Number(batchData.timestamp) * 1000).toISOString(),
-          credentialCount: Number(batchData.credentialCount),
+          timestamp: new Date(batchData.timestamp * 1000).toISOString(),
         };
       }
     } catch (error) {
       console.error('On-chain verification failed:', error);
     }
 
-    // 6. Verify issuer is trusted
+    // 6. Verify issuer is trusted (from MongoDB)
     let issuerTrusted = false;
     let issuerDetails = null;
     try {
       const issuerAddress = anchorDetails?.issuerAddress;
       if (issuerAddress) {
-        issuerTrusted = await isIssuerTrusted(issuerAddress);
-        if (issuerTrusted) {
-          const details = await getIssuerDetails(issuerAddress);
+        const issuersCollection = await getIssuersCollection();
+        // Use case-insensitive regex for address matching
+        const issuer = await issuersCollection.findOne({ 
+          address: { $regex: new RegExp(`^${issuerAddress}$`, 'i') }
+        });
+        if (issuer && issuer.active) {
+          issuerTrusted = true;
           issuerDetails = {
-            did: details.did,
-            name: details.name,
-            active: details.active,
-            registeredAt: new Date(Number(details.registeredAt) * 1000).toISOString(),
+            did: issuer.did,
+            name: issuer.name,
+            active: issuer.active,
+            registeredAt: issuer.registeredAt.toISOString(),
           };
         }
       }
@@ -114,7 +117,7 @@ export async function POST(request: NextRequest) {
       console.error('Issuer verification failed:', error);
     }
 
-    // 7. Check revocation status
+    // 7. Check revocation status (from MongoDB)
     let revoked = false;
     let revokedAt = null;
     if (credential) {
@@ -133,7 +136,6 @@ export async function POST(request: NextRequest) {
         issuer: fullCredential.issuer,
         issuanceDate: fullCredential.issuanceDate,
         expirationDate: fullCredential.expirationDate,
-        // Only return subject ID, not full data for public verification
         subjectDID: fullCredential.credentialSubject.id,
       },
       verification: {

@@ -3,7 +3,7 @@ import hre from "hardhat";
 const { ethers } = hre;
 
 async function main() {
-  console.log("Deploying CredentialRegistry contract...\n");
+  console.log("Deploying CredentialRegistry contract (minimal version)...\n");
 
   const [deployer] = await ethers.getSigners();
   console.log("Deploying with account:", deployer.address);
@@ -22,30 +22,16 @@ async function main() {
   console.log("\nAdd this to your .env file:");
   console.log(`CREDENTIAL_REGISTRY_CONTRACT=${contractAddress}`);
 
-  // Optionally register the deployer as the first issuer
-  const registerIssuer = process.env.AUTO_REGISTER_ISSUER === "true";
-  
-  if (registerIssuer) {
-    const issuerDID = process.env.ISSUER_DID || `did:web:localhost`;
-    const issuerName = process.env.ISSUER_NAME || "Demo Issuer";
-    
-    console.log("\nRegistering deployer as trusted issuer...");
-    const tx = await registry.registerIssuer(deployer.address, issuerDID, issuerName);
-    await tx.wait();
-    
-    console.log("Issuer registered successfully!");
-    console.log("  Address:", deployer.address);
-    console.log("  DID:", issuerDID);
-    console.log("  Name:", issuerName);
-  }
-
   console.log("\n========================================");
   console.log("Deployment complete!");
   console.log("========================================");
+  console.log("\nThis minimal contract only supports:");
+  console.log("  - anchor(merkleRoot) - Store a merkle root");
+  console.log("  - verify(merkleRoot) - Check if root exists");
+  console.log("\nIssuer management & revocation are handled in MongoDB.");
   console.log("\nNext steps:");
   console.log("1. Copy the contract address to your .env file");
-  console.log("2. Register issuers using the registerIssuer function");
-  console.log("3. Verify the contract on Polygonscan (optional):");
+  console.log("2. Verify the contract on Polygonscan (optional):");
   console.log(`   npx hardhat verify --network polygon_amoy ${contractAddress}`);
 }
 
