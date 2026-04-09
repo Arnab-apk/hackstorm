@@ -13,3 +13,4 @@
 {"timestamp":"00:11:03.387","source":"Server","level":"LOG","message":"  Reload env: .env.development.local"}
 {"timestamp":"00:16:12.879","source":"Server","level":"LOG","message":"  Reload env: .env.development.local"}
 {"timestamp":"00:17:42.649","source":"Server","level":"LOG","message":"✓ Compiled in 363ms"}
+{"timestamp":"00:21:36.592","source":"Server","level":"LOG","message":"  Reload env: .env.development.local"}
