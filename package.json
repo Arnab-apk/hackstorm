@@ -11,7 +11,8 @@
     "deploy:contracts": "hardhat run scripts/deploy-contract.ts --network polygon_amoy",
     "generate:keys": "tsx scripts/generate-keys.ts",
     "setup:db": "tsx scripts/setup-database.ts",
-    "seed:demo": "tsx scripts/seed-demo-data.ts"
+    "seed:demo": "tsx scripts/seed-demo-data.ts",
+    "register:issuer": "tsx scripts/register-issuer.ts"
   },
   "dependencies": {
     "@noble/curves": "^2.0.1",
