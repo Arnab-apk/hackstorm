@@ -15,7 +15,7 @@ export const CREDENTIAL_REGISTRY_ABI = [
     inputs: [{ internalType: 'bytes32', name: '_merkleRoot', type: 'bytes32' }],
     name: 'verify',
     outputs: [
-      { internalType: 'bool', name: 'exists', type: 'bool' },
+      { internalType: 'bool', name: 'found', type: 'bool' },
       { internalType: 'address', name: 'issuer', type: 'address' },
       { internalType: 'uint256', name: 'timestamp', type: 'uint256' },
     ],

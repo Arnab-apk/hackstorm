@@ -30,3 +30,5 @@
 {"timestamp":"00:08:49.106","source":"Browser","level":"ERROR","message":"<a> cannot contain a nested <a>.\nSee this log for the ancestor stack trace. \"\""}
 {"timestamp":"00:11:15.970","source":"Server","level":"LOG","message":"  Reload env: .env.development.local"}
 {"timestamp":"00:12:21.026","source":"Server","level":"LOG","message":"✓ Compiled in 76ms"}
+{"timestamp":"00:15:04.171","source":"Server","level":"LOG","message":"  Reload env: .env.development.local"}
+{"timestamp":"00:15:39.543","source":"Server","level":"LOG","message":"  Reload env: .env.development.local"}
