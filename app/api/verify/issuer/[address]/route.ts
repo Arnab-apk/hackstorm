@@ -2,12 +2,12 @@
  * Public Issuer Lookup API
  * GET /api/verify/issuer/[address]
  * 
- * Look up issuer details from the on-chain registry.
+ * Look up issuer details from MongoDB registry.
  * Publicly accessible.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { isIssuerTrusted, getIssuerDetails } from '@/lib/blockchain';
+import { getIssuersCollection } from '@/lib/db';
 import { errorResponse } from '@/lib/response';
 
 export async function GET(
@@ -26,10 +26,13 @@ export async function GET(
       return errorResponse('Invalid Ethereum address format', 400);
     }
 
-    // Check if issuer is trusted
-    const trusted = await isIssuerTrusted(address);
+    // Look up issuer in MongoDB
+    const issuersCollection = await getIssuersCollection();
+    const issuer = await issuersCollection.findOne({ 
+      address: address.toLowerCase() 
+    });
 
-    if (!trusted) {
+    if (!issuer) {
       return NextResponse.json({
         address,
         trusted: false,
@@ -38,17 +41,14 @@ export async function GET(
       });
     }
 
-    // Get issuer details
-    const details = await getIssuerDetails(address);
-
     return NextResponse.json({
       address,
-      trusted: true,
+      trusted: issuer.active,
       details: {
-        did: details.did,
-        name: details.name,
-        active: details.active,
-        registeredAt: new Date(Number(details.registeredAt) * 1000).toISOString(),
+        did: issuer.did,
+        name: issuer.name,
+        active: issuer.active,
+        registeredAt: issuer.registeredAt.toISOString(),
       },
     });
 

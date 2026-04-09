@@ -6,7 +6,6 @@ import {
   notFound,
   handleError 
 } from '@/lib/response';
-import { revokeCredentialOnChain } from '@/lib/blockchain';
 import { 
   getCredentialsCollection, 
   getBatchesCollection,
@@ -17,7 +16,7 @@ import type { RevokeRequest } from '@/types';
 
 /**
  * POST /api/issuer/revoke
- * Revoke a credential
+ * Revoke a credential (MongoDB only - no blockchain call)
  */
 export async function POST(request: NextRequest) {
   try {
@@ -45,7 +44,7 @@ export async function POST(request: NextRequest) {
       return badRequest('Credential is already revoked');
     }
 
-    // Get batch to get merkle root
+    // Get batch to verify ownership
     const batchesCollection = await getBatchesCollection();
     const batch = await batchesCollection.findOne({ _id: credential.batchId });
 
@@ -58,20 +57,14 @@ export async function POST(request: NextRequest) {
       return badRequest('You are not the issuer of this credential');
     }
 
-    // Revoke on-chain
-    const txHash = await revokeCredentialOnChain(
-      batch.merkleRoot,
-      credential.leafIndex,
-      reason
-    );
-
-    // Update database
+    // Update database (revocation is now MongoDB-only)
+    const revokedAt = new Date();
     await credentialsCollection.updateOne(
       { _id: credentialId },
       {
         $set: {
           revoked: true,
-          revokedAt: new Date(),
+          revokedAt,
           revokedReason: reason,
         },
       }
@@ -89,8 +82,7 @@ export async function POST(request: NextRequest) {
     return successResponse({
       success: true,
       credentialId,
-      txHash,
-      revokedAt: new Date().toISOString(),
+      revokedAt: revokedAt.toISOString(),
     });
   } catch (error) {
     return handleError(error);
