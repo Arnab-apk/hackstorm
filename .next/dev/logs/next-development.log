@@ -10,3 +10,7 @@
 {"timestamp":"00:08:00.950","source":"Server","level":"LOG","message":"✓ Compiled in 264ms"}
 {"timestamp":"00:09:46.802","source":"Server","level":"LOG","message":"✓ Compiled in 135ms"}
 {"timestamp":"00:10:44.821","source":"Server","level":"LOG","message":"✓ Compiled in 84ms"}
+{"timestamp":"00:11:03.387","source":"Server","level":"LOG","message":"  Reload env: .env.development.local"}
+{"timestamp":"00:16:12.879","source":"Server","level":"LOG","message":"  Reload env: .env.development.local"}
+{"timestamp":"00:17:42.649","source":"Server","level":"LOG","message":"✓ Compiled in 363ms"}
+{"timestamp":"00:21:36.592","source":"Server","level":"LOG","message":"  Reload env: .env.development.local"}

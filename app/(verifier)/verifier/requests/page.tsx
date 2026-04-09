@@ -45,8 +45,8 @@ export default function RequestsPage() {
   const statusParam = activeTab !== 'all' ? `&status=${activeTab}` : '';
   const { data, error, isLoading } = useSWR(`/api/verifier/requests?pageSize=50${statusParam}`, fetcher);
 
-  const requests: VerificationRequest[] = data?.data?.requests || [];
-  const counts = data?.data?.counts || { pending: 0, approved: 0, rejected: 0, expired: 0 };
+  const requests: VerificationRequest[] = data?.requests || [];
+  const counts = data?.counts || { pending: 0, approved: 0, rejected: 0, expired: 0 };
 
   const filteredRequests = React.useMemo(() => {
     if (!searchQuery) return requests;

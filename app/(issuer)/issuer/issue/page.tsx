@@ -2,13 +2,13 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
+import useSWR from 'swr';
 import { PageHeader } from '@/components/shared/page-header';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, type SelectOption } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import {
   ArrowLeft,
@@ -22,12 +22,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-const schemaOptions: SelectOption[] = [
-  { value: 'university-degree', label: 'University Degree', description: 'Bachelor, Master, PhD degrees' },
-  { value: 'employee-id', label: 'Employee ID', description: 'Employment verification' },
-  { value: 'course-completion', label: 'Course Completion', description: 'Training and courses' },
-  { value: 'professional-cert', label: 'Professional Certificate', description: 'Industry certifications' },
-];
+const fetcher = (url: string) => fetch(url).then(res => res.json());
 
 const steps = [
   { id: 1, title: 'Select Schema', icon: FileText },
@@ -36,41 +31,12 @@ const steps = [
   { id: 4, title: 'Review & Issue', icon: Send },
 ];
 
-// Dynamic fields based on schema
-const schemaFields: Record<string, { key: string; label: string; type: string; required: boolean; hideable: boolean }[]> = {
-  'university-degree': [
-    { key: 'degree', label: 'Degree Type', type: 'select', required: true, hideable: false },
-    { key: 'major', label: 'Major / Field of Study', type: 'text', required: true, hideable: true },
-    { key: 'gpa', label: 'GPA', type: 'text', required: false, hideable: true },
-    { key: 'graduationDate', label: 'Graduation Date', type: 'date', required: true, hideable: true },
-    { key: 'honors', label: 'Honors', type: 'text', required: false, hideable: true },
-  ],
-  'employee-id': [
-    { key: 'employeeId', label: 'Employee ID', type: 'text', required: true, hideable: true },
-    { key: 'department', label: 'Department', type: 'text', required: true, hideable: true },
-    { key: 'position', label: 'Position', type: 'text', required: true, hideable: false },
-    { key: 'startDate', label: 'Start Date', type: 'date', required: true, hideable: true },
-  ],
-  'course-completion': [
-    { key: 'courseName', label: 'Course Name', type: 'text', required: true, hideable: false },
-    { key: 'completionDate', label: 'Completion Date', type: 'date', required: true, hideable: false },
-    { key: 'grade', label: 'Grade', type: 'text', required: false, hideable: true },
-    { key: 'instructor', label: 'Instructor', type: 'text', required: false, hideable: true },
-  ],
-  'professional-cert': [
-    { key: 'certificationName', label: 'Certification Name', type: 'text', required: true, hideable: false },
-    { key: 'issuingBody', label: 'Issuing Body', type: 'text', required: true, hideable: false },
-    { key: 'issueDate', label: 'Issue Date', type: 'date', required: true, hideable: false },
-    { key: 'expiryDate', label: 'Expiry Date', type: 'date', required: false, hideable: true },
-    { key: 'certificationId', label: 'Certification ID', type: 'text', required: false, hideable: true },
-  ],
-};
-
 const degreeOptions: SelectOption[] = [
-  { value: 'bachelor', label: 'Bachelor of Science' },
-  { value: 'master', label: 'Master of Science' },
-  { value: 'phd', label: 'Doctor of Philosophy' },
-  { value: 'associate', label: 'Associate Degree' },
+  { value: 'Bachelor', label: 'Bachelor' },
+  { value: 'Master', label: 'Master' },
+  { value: 'Doctoral', label: 'Doctoral' },
+  { value: 'Associate', label: 'Associate' },
+  { value: 'Professional', label: 'Professional' },
 ];
 
 export default function IssueSinglePage() {
@@ -78,13 +44,24 @@ export default function IssueSinglePage() {
   const [currentStep, setCurrentStep] = React.useState(1);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   
+  // Fetch schemas from API
+  const { data: schemasData } = useSWR('/api/issuer/schemas', fetcher);
+  const schemas = schemasData?.schemas || [];
+  
   // Form state
   const [selectedSchema, setSelectedSchema] = React.useState('');
   const [recipientEmail, setRecipientEmail] = React.useState('');
   const [recipientName, setRecipientName] = React.useState('');
   const [credentialData, setCredentialData] = React.useState<Record<string, string>>({});
 
-  const fields = selectedSchema ? schemaFields[selectedSchema] || [] : [];
+  const schemaOptions: SelectOption[] = schemas.map((s: any) => ({
+    value: s.id,
+    label: s.name,
+    description: s.description,
+  }));
+
+  const currentSchema = schemas.find((s: any) => s.id === selectedSchema);
+  const fields = currentSchema?.fields || [];
 
   const handleNext = () => {
     if (currentStep < 4) {
@@ -105,14 +82,41 @@ export default function IssueSinglePage() {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    toast.success('Credential issued successfully!', {
-      description: `Credential sent to ${recipientEmail}`,
-    });
-    
-    router.push('/issuer/credentials');
+    try {
+      // Add recipient name to credential data
+      const finalCredentialData = {
+        ...credentialData,
+        name: recipientName,
+      };
+
+      const response = await fetch('/api/issuer/issue/single', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          schemaId: selectedSchema,
+          recipientEmail,
+          credentialData: finalCredentialData,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to issue credential');
+      }
+      
+      toast.success('Credential issued successfully!', {
+        description: `Credential sent to ${recipientEmail}`,
+      });
+      
+      router.push('/issuer/credentials');
+    } catch (error: any) {
+      toast.error('Failed to issue credential', {
+        description: error.message,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const canProceed = () => {
@@ -122,7 +126,7 @@ export default function IssueSinglePage() {
       case 2:
         return !!recipientEmail && !!recipientName;
       case 3:
-        return fields.filter(f => f.required).every(f => !!credentialData[f.key]);
+        return fields.filter((f: any) => f.required && f.key !== 'name').every((f: any) => !!credentialData[f.key]);
       case 4:
         return true;
       default:
@@ -196,11 +200,11 @@ export default function IssueSinglePage() {
                 options={schemaOptions}
                 placeholder="Select a credential schema"
               />
-              {selectedSchema && (
+              {selectedSchema && currentSchema && (
                 <div className="p-4 rounded-xl bg-muted/50 border border-border">
                   <p className="text-sm font-medium mb-2">Fields in this schema:</p>
                   <div className="flex flex-wrap gap-2">
-                    {fields.map(field => (
+                    {fields.map((field: any) => (
                       <Badge key={field.key} variant={field.required ? 'default' : 'muted'}>
                         {field.label}
                         {field.required && '*'}
@@ -218,7 +222,7 @@ export default function IssueSinglePage() {
               <div>
                 <h3 className="text-lg font-semibold mb-2">Recipient Information</h3>
                 <p className="text-sm text-muted-foreground">
-                  Enter the recipient&apos;s details. Their wallet address will be automatically predicted from their email.
+                  Enter the recipient&apos;s details. Their wallet address will be automatically derived from their email.
                 </p>
               </div>
               <div className="space-y-4">
@@ -241,7 +245,7 @@ export default function IssueSinglePage() {
                     onChange={(e) => setRecipientEmail(e.target.value)}
                   />
                   <p className="text-xs text-muted-foreground">
-                    The credential will be bound to the wallet address derived from this email.
+                    The credential will be bound to a wallet address derived from this email.
                   </p>
                 </div>
               </div>
@@ -258,7 +262,7 @@ export default function IssueSinglePage() {
                 </p>
               </div>
               <div className="space-y-4">
-                {fields.map(field => (
+                {fields.filter((f: any) => f.key !== 'name').map((field: any) => (
                   <div key={field.key} className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label htmlFor={field.key} required={field.required}>
@@ -270,11 +274,11 @@ export default function IssueSinglePage() {
                         </Badge>
                       )}
                     </div>
-                    {field.type === 'select' && field.key === 'degree' ? (
+                    {field.type === 'select' ? (
                       <Select
                         value={credentialData[field.key] || ''}
                         onValueChange={(value) => handleFieldChange(field.key, value)}
-                        options={degreeOptions}
+                        options={(field.options || []).map((opt: string) => ({ value: opt, label: opt }))}
                         placeholder={`Select ${field.label.toLowerCase()}`}
                       />
                     ) : field.type === 'date' ? (
@@ -283,6 +287,17 @@ export default function IssueSinglePage() {
                         type="date"
                         value={credentialData[field.key] || ''}
                         onChange={(e) => handleFieldChange(field.key, e.target.value)}
+                      />
+                    ) : field.type === 'number' ? (
+                      <Input
+                        id={field.key}
+                        type="number"
+                        placeholder={`Enter ${field.label.toLowerCase()}`}
+                        value={credentialData[field.key] || ''}
+                        onChange={(e) => handleFieldChange(field.key, e.target.value)}
+                        min={field.validation?.min}
+                        max={field.validation?.max}
+                        step={field.validation?.max === 4 ? '0.01' : '1'}
                       />
                     ) : (
                       <Input
@@ -312,7 +327,7 @@ export default function IssueSinglePage() {
                 <div className="p-4 rounded-xl bg-muted/50 border border-border">
                   <p className="text-sm text-muted-foreground mb-1">Credential Type</p>
                   <p className="font-medium">
-                    {schemaOptions.find(s => s.value === selectedSchema)?.label}
+                    {currentSchema?.name || selectedSchema}
                   </p>
                 </div>
 
@@ -325,7 +340,7 @@ export default function IssueSinglePage() {
                 <div className="p-4 rounded-xl bg-muted/50 border border-border">
                   <p className="text-sm text-muted-foreground mb-3">Credential Data</p>
                   <div className="space-y-2">
-                    {fields.map(field => (
+                    {fields.filter((f: any) => f.key !== 'name').map((field: any) => (
                       <div key={field.key} className="flex justify-between text-sm">
                         <span className="text-muted-foreground">{field.label}</span>
                         <span className="font-medium">
@@ -342,7 +357,7 @@ export default function IssueSinglePage() {
                     <li>1. Credential will be signed with your issuer key</li>
                     <li>2. Merkle root will be anchored on Polygon</li>
                     <li>3. Credential will be stored on IPFS</li>
-                    <li>4. Recipient will be notified via email</li>
+                    <li>4. Recipient will receive a notification</li>
                   </ul>
                 </div>
               </div>

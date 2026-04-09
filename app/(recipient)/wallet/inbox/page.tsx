@@ -48,7 +48,7 @@ export default function InboxPage() {
   const [isAccepting, setIsAccepting] = React.useState(false);
   const [isRejecting, setIsRejecting] = React.useState(false);
 
-  const pendingCredentials: PendingCredential[] = data?.data?.credentials || [];
+  const pendingCredentials: PendingCredential[] = data?.credentials || [];
 
   const handleAccept = async () => {
     if (!selectedCredential) return;
