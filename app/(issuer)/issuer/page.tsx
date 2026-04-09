@@ -2,12 +2,14 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import useSWR from 'swr';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/ui/stat-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CredentialCard } from '@/components/shared/credential-card';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Award,
   Users,
@@ -17,65 +19,28 @@ import {
   ArrowRight,
   TrendingUp,
   FileStack,
+  AlertCircle,
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 
-// Mock data for dashboard
-const stats = [
-  { label: 'Total Issued', value: '1,247', icon: <Award className="h-6 w-6" />, trend: { value: 12, isPositive: true } },
-  { label: 'Recipients', value: '892', icon: <Users className="h-6 w-6" />, trend: { value: 8, isPositive: true } },
-  { label: 'Claimed', value: '756', icon: <CheckCircle2 className="h-6 w-6" />, trend: { value: 15, isPositive: true } },
-  { label: 'Pending', value: '136', icon: <Clock className="h-6 w-6" /> },
-];
-
-const recentCredentials = [
-  {
-    id: '1',
-    schemaId: 'university-degree',
-    schemaName: 'University Degree',
-    issuerName: 'Demo University',
-    issuerDID: 'did:web:demo-university.edu',
-    recipientName: 'Alice Johnson',
-    recipientEmail: 'alice@example.com',
-    issuedAt: '2024-12-15T10:30:00Z',
-    claimed: true,
-    claimedAt: '2024-12-16T14:20:00Z',
-    revoked: false,
-  },
-  {
-    id: '2',
-    schemaId: 'employee-id',
-    schemaName: 'Employee ID',
-    issuerName: 'Demo University',
-    issuerDID: 'did:web:demo-university.edu',
-    recipientName: 'Bob Smith',
-    recipientEmail: 'bob@example.com',
-    issuedAt: '2024-12-14T09:15:00Z',
-    claimed: false,
-    revoked: false,
-  },
-  {
-    id: '3',
-    schemaId: 'course-completion',
-    schemaName: 'Course Completion',
-    issuerName: 'Demo University',
-    issuerDID: 'did:web:demo-university.edu',
-    recipientName: 'Carol Davis',
-    recipientEmail: 'carol@example.com',
-    issuedAt: '2024-12-13T16:45:00Z',
-    claimed: true,
-    claimedAt: '2024-12-14T08:00:00Z',
-    revoked: false,
-  },
-];
-
-const recentBatches = [
-  { id: '1', name: 'Spring 2024 Graduates', count: 245, issuedAt: '2024-12-10T12:00:00Z', status: 'completed' },
-  { id: '2', name: 'Employee Onboarding Dec', count: 32, issuedAt: '2024-12-08T10:00:00Z', status: 'completed' },
-  { id: '3', name: 'Workshop Certificates', count: 78, issuedAt: '2024-12-05T14:00:00Z', status: 'completed' },
-];
+const fetcher = (url: string) => fetch(url).then(res => res.json());
 
 export default function IssuerDashboard() {
+  const { data: statsData, error: statsError, isLoading: statsLoading } = useSWR('/api/issuer/stats', fetcher);
+  const { data: credentialsData, error: credentialsError, isLoading: credentialsLoading } = useSWR('/api/issuer/credentials?pageSize=3', fetcher);
+  const { data: batchesData, error: batchesError, isLoading: batchesLoading } = useSWR('/api/issuer/batches?pageSize=3', fetcher);
+
+  const stats = statsData?.data;
+  const credentials = credentialsData?.data?.credentials || [];
+  const batches = batchesData?.data?.batches || [];
+
+  const statCards = [
+    { label: 'Total Issued', value: stats?.totalCredentials?.toString() || '0', icon: <Award className="h-6 w-6" /> },
+    { label: 'Total Batches', value: stats?.totalBatches?.toString() || '0', icon: <FileStack className="h-6 w-6" /> },
+    { label: 'Claimed', value: stats?.claimedCredentials?.toString() || '0', icon: <CheckCircle2 className="h-6 w-6" /> },
+    { label: 'Pending', value: stats?.unclaimedCredentials?.toString() || '0', icon: <Clock className="h-6 w-6" /> },
+  ];
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -101,9 +66,26 @@ export default function IssuerDashboard() {
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <StatCard key={stat.label} {...stat} />
-        ))}
+        {statsLoading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-4">
+                <Skeleton className="h-16 w-full" />
+              </CardContent>
+            </Card>
+          ))
+        ) : statsError ? (
+          <Card className="col-span-full">
+            <CardContent className="p-4 flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-4 w-4" />
+              Failed to load statistics
+            </CardContent>
+          </Card>
+        ) : (
+          statCards.map((stat) => (
+            <StatCard key={stat.label} {...stat} />
+          ))
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -118,17 +100,49 @@ export default function IssuerDashboard() {
               </Link>
             </Button>
           </div>
-          <div className="space-y-3">
-            {recentCredentials.map((credential) => (
-              <CredentialCard
-                key={credential.id}
-                credential={credential}
-                variant="compact"
-                showRecipient
-                onClick={() => {}}
-              />
-            ))}
-          </div>
+          {credentialsLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-20 w-full" />
+              ))}
+            </div>
+          ) : credentialsError ? (
+            <Card>
+              <CardContent className="p-4 flex items-center gap-2 text-destructive">
+                <AlertCircle className="h-4 w-4" />
+                Failed to load credentials
+              </CardContent>
+            </Card>
+          ) : credentials.length === 0 ? (
+            <Card>
+              <CardContent className="p-6 text-center text-muted-foreground">
+                No credentials issued yet. Start by issuing your first credential.
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {credentials.map((credential: any) => (
+                <CredentialCard
+                  key={credential._id}
+                  credential={{
+                    id: credential._id,
+                    schemaId: credential.schemaId,
+                    schemaName: credential.schemaName,
+                    issuerName: 'You',
+                    issuerDID: '',
+                    issuedAt: credential.issuedAt,
+                    claimed: credential.claimed,
+                    claimedAt: credential.claimedAt,
+                    revoked: credential.revoked,
+                    recipientEmail: credential.recipientEmail,
+                  }}
+                  variant="compact"
+                  showRecipient
+                  onClick={() => {}}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Recent Batches */}
@@ -144,27 +158,48 @@ export default function IssuerDashboard() {
           </div>
           <Card>
             <CardContent className="p-0">
-              <div className="divide-y divide-border">
-                {recentBatches.map((batch) => (
-                  <div
-                    key={batch.id}
-                    className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors cursor-pointer"
-                  >
-                    <div>
-                      <p className="font-medium text-sm">{batch.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {batch.count} credentials
-                      </p>
+              {batchesLoading ? (
+                <div className="divide-y divide-border">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="p-4">
+                      <Skeleton className="h-12 w-full" />
                     </div>
-                    <div className="text-right">
-                      <Badge variant="success" className="mb-1">Completed</Badge>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDate(batch.issuedAt)}
-                      </p>
+                  ))}
+                </div>
+              ) : batchesError ? (
+                <div className="p-4 flex items-center gap-2 text-destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  Failed to load batches
+                </div>
+              ) : batches.length === 0 ? (
+                <div className="p-6 text-center text-muted-foreground">
+                  No batches created yet.
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {batches.map((batch: any) => (
+                    <div
+                      key={batch._id}
+                      className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors cursor-pointer"
+                    >
+                      <div>
+                        <p className="font-medium text-sm">{batch.name || `Batch ${batch._id.slice(0, 8)}`}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {batch.credentialCount} credentials
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <Badge variant={batch.anchorStatus === 'confirmed' ? 'success' : 'warning'}>
+                          {batch.anchorStatus === 'confirmed' ? 'Anchored' : 'Pending'}
+                        </Badge>
+                        <p className="text-xs text-muted-foreground">
+                          {formatDate(batch.createdAt)}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

@@ -164,17 +164,18 @@ Copy the contract address to `.env.local`.
 
 ### Step 6: Configure Role Addresses
 
-You need to assign Gmail accounts to roles. First run the app and log in with each account to get their wallet addresses.
+You need to assign wallet addresses to roles. Get your MetaMask wallet addresses for issuer and verifier accounts.
 
-1. Start the app: `pnpm dev`
-2. Log in with your issuer Gmail account
-3. Check browser console or network tab for wallet address
-4. Repeat for verifier account
+1. Open MetaMask and get the wallet address for your issuer account
+2. Get the wallet address for your verifier account
+3. All other wallet addresses will be treated as regular users
 
 ```env
-ISSUER_WALLET_ADDRESS=0x... (from issuer-demo@gmail.com login)
-VERIFIER_WALLET_ADDRESS=0x... (from verifier-demo@gmail.com login)
+ISSUER_WALLET_ADDRESS=0x... (your issuer MetaMask address)
+VERIFIER_WALLET_ADDRESS=0x... (your verifier MetaMask address)
 ```
+
+> **Note:** Users connect their MetaMask wallet to log in. Their role is determined automatically based on whether their address matches ISSUER_WALLET_ADDRESS (issuer), VERIFIER_WALLET_ADDRESS (verifier), or neither (regular user).
 
 ---
 
@@ -246,14 +247,7 @@ PINATA_SECRET_KEY=xyz789
 PINATA_JWT=eyJ...
 NEXT_PUBLIC_IPFS_GATEWAY=https://gateway.pinata.cloud/ipfs
 
-# Web3Auth
-WEB3AUTH_CLIENT_ID=BDf4...
-WEB3AUTH_CLIENT_SECRET=secret...
-WEB3AUTH_VERIFIER=decentralized-identity-verifier
-NEXT_PUBLIC_WEB3AUTH_CLIENT_ID=BDf4...
-WEB3AUTH_NETWORK=sapphire_devnet
-
-# Role Assignment
+# Role Assignment (wallet addresses for role-based access)
 ISSUER_WALLET_ADDRESS=0x742d35Cc...
 VERIFIER_WALLET_ADDRESS=0x891a22Ff...
 

@@ -1,11 +1,13 @@
 'use client';
 
 import * as React from 'react';
+import useSWR from 'swr';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Skeleton } from '@/components/ui/skeleton';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import {
   Share2,
@@ -13,55 +15,42 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
-  ExternalLink,
   Award,
-  Building,
+  AlertCircle,
+  Copy,
+  ExternalLink,
 } from 'lucide-react';
-import { formatDate, formatDateTime } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
+import { toast } from 'sonner';
 
-interface SharedPresentation {
+const fetcher = (url: string) => fetch(url).then(res => res.json());
+
+interface ShareToken {
   id: string;
-  credentialName: string;
-  verifierName: string;
-  sharedAt: string;
-  expiresAt: string;
-  status: 'active' | 'expired' | 'revoked';
-  viewCount: number;
+  credentialId: string;
+  shareLink: string;
+  disclosedFields: string[];
+  hiddenFields: string[];
+  expiresAt: string | null;
+  maxViews: number | null;
+  currentViews: number;
+  isExpired: boolean;
+  isExhausted: boolean;
+  createdAt: string;
 }
 
-// Mock shared presentations
-const mockSharedPresentations: SharedPresentation[] = [
-  {
-    id: '1',
-    credentialName: 'Bachelor of Science',
-    verifierName: 'TechCorp Inc.',
-    sharedAt: '2024-12-15T10:00:00Z',
-    expiresAt: '2024-12-22T10:00:00Z',
-    status: 'active',
-    viewCount: 3,
-  },
-  {
-    id: '2',
-    credentialName: 'AWS Solutions Architect',
-    verifierName: 'CloudFirst Ltd.',
-    sharedAt: '2024-12-10T14:30:00Z',
-    expiresAt: '2024-12-17T14:30:00Z',
-    status: 'expired',
-    viewCount: 5,
-  },
-  {
-    id: '3',
-    credentialName: 'Machine Learning Fundamentals',
-    verifierName: 'AI Innovations',
-    sharedAt: '2024-12-08T09:00:00Z',
-    expiresAt: '2024-12-15T09:00:00Z',
-    status: 'revoked',
-    viewCount: 1,
-  },
-];
-
 export default function SharedPage() {
-  const getStatusBadge = (status: SharedPresentation['status']) => {
+  const { data, error, isLoading } = useSWR('/api/recipient/share', fetcher);
+
+  const shareTokens: ShareToken[] = data?.data?.shareTokens || [];
+
+  const getStatus = (token: ShareToken): 'active' | 'expired' | 'exhausted' => {
+    if (token.isExpired) return 'expired';
+    if (token.isExhausted) return 'exhausted';
+    return 'active';
+  };
+
+  const getStatusBadge = (status: 'active' | 'expired' | 'exhausted') => {
     switch (status) {
       case 'active':
         return (
@@ -77,17 +66,22 @@ export default function SharedPage() {
             Expired
           </Badge>
         );
-      case 'revoked':
+      case 'exhausted':
         return (
-          <Badge variant="destructive">
+          <Badge variant="muted">
             <XCircle className="mr-1 h-3 w-3" />
-            Revoked
+            Views Exhausted
           </Badge>
         );
     }
   };
 
-  const columns: Column<SharedPresentation>[] = [
+  const copyLink = (link: string) => {
+    navigator.clipboard.writeText(link);
+    toast.success('Link copied to clipboard');
+  };
+
+  const columns: Column<ShareToken>[] = [
     {
       key: 'credential',
       header: 'Credential',
@@ -96,29 +90,32 @@ export default function SharedPage() {
           <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
             <Award className="h-5 w-5 text-primary" />
           </div>
-          <span className="font-medium">{row.credentialName}</span>
+          <span className="font-medium truncate max-w-[150px]">{row.credentialId}</span>
         </div>
       ),
     },
     {
-      key: 'verifier',
-      header: 'Shared With',
+      key: 'disclosed',
+      header: 'Disclosed Fields',
       cell: (row) => (
-        <div className="flex items-center gap-2">
-          <Building className="h-4 w-4 text-muted-foreground" />
-          <span>{row.verifierName}</span>
-        </div>
+        <span className="text-muted-foreground">
+          {row.disclosedFields.length} fields
+        </span>
       ),
     },
     {
       key: 'sharedAt',
-      header: 'Shared',
-      cell: (row) => <span className="text-muted-foreground">{formatDate(row.sharedAt)}</span>,
+      header: 'Created',
+      cell: (row) => <span className="text-muted-foreground">{formatDate(row.createdAt)}</span>,
     },
     {
       key: 'expires',
       header: 'Expires',
-      cell: (row) => <span className="text-muted-foreground">{formatDate(row.expiresAt)}</span>,
+      cell: (row) => (
+        <span className="text-muted-foreground">
+          {row.expiresAt ? formatDate(row.expiresAt) : 'Never'}
+        </span>
+      ),
     },
     {
       key: 'views',
@@ -126,29 +123,45 @@ export default function SharedPage() {
       cell: (row) => (
         <div className="flex items-center gap-1">
           <Eye className="h-4 w-4 text-muted-foreground" />
-          <span>{row.viewCount}</span>
+          <span>
+            {row.currentViews}
+            {row.maxViews ? ` / ${row.maxViews}` : ''}
+          </span>
         </div>
       ),
     },
     {
       key: 'status',
       header: 'Status',
-      cell: (row) => getStatusBadge(row.status),
+      cell: (row) => getStatusBadge(getStatus(row)),
     },
     {
       key: 'actions',
       header: '',
-      className: 'w-[80px]',
-      cell: (row) =>
-        row.status === 'active' && (
-          <Button variant="ghost" size="icon-sm">
-            <XCircle className="h-4 w-4 text-destructive" />
+      className: 'w-[100px]',
+      cell: (row) => (
+        <div className="flex items-center gap-2 justify-end">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => copyLink(row.shareLink)}
+          >
+            <Copy className="h-4 w-4" />
           </Button>
-        ),
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => window.open(row.shareLink, '_blank')}
+          >
+            <ExternalLink className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
     },
   ];
 
-  const activeCount = mockSharedPresentations.filter(p => p.status === 'active').length;
+  const activeCount = shareTokens.filter(t => getStatus(t) === 'active').length;
+  const totalViews = shareTokens.reduce((acc, t) => acc + t.currentViews, 0);
 
   return (
     <div className="space-y-6">
@@ -165,7 +178,11 @@ export default function SharedPage() {
               <Share2 className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{mockSharedPresentations.length}</p>
+              {isLoading ? (
+                <Skeleton className="h-8 w-12" />
+              ) : (
+                <p className="text-2xl font-bold">{shareTokens.length}</p>
+              )}
               <p className="text-sm text-muted-foreground">Total Shares</p>
             </div>
           </CardContent>
@@ -176,7 +193,11 @@ export default function SharedPage() {
               <CheckCircle2 className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-2xl font-bold">{activeCount}</p>
+              {isLoading ? (
+                <Skeleton className="h-8 w-12" />
+              ) : (
+                <p className="text-2xl font-bold">{activeCount}</p>
+              )}
               <p className="text-sm text-muted-foreground">Active Links</p>
             </div>
           </CardContent>
@@ -187,9 +208,11 @@ export default function SharedPage() {
               <Eye className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-2xl font-bold">
-                {mockSharedPresentations.reduce((acc, p) => acc + p.viewCount, 0)}
-              </p>
+              {isLoading ? (
+                <Skeleton className="h-8 w-12" />
+              ) : (
+                <p className="text-2xl font-bold">{totalViews}</p>
+              )}
               <p className="text-sm text-muted-foreground">Total Views</p>
             </div>
           </CardContent>
@@ -197,7 +220,16 @@ export default function SharedPage() {
       </div>
 
       {/* Table */}
-      {mockSharedPresentations.length === 0 ? (
+      {isLoading ? (
+        <Skeleton className="h-64 w-full" />
+      ) : error ? (
+        <Card>
+          <CardContent className="p-6 flex items-center justify-center gap-2 text-destructive">
+            <AlertCircle className="h-5 w-5" />
+            Failed to load share tokens. Please try again.
+          </CardContent>
+        </Card>
+      ) : shareTokens.length === 0 ? (
         <EmptyState
           icon={<Share2 className="h-8 w-8" />}
           title="No shared credentials"
@@ -206,7 +238,7 @@ export default function SharedPage() {
       ) : (
         <DataTable
           columns={columns}
-          data={mockSharedPresentations}
+          data={shareTokens}
           keyExtractor={(row) => row.id}
         />
       )}

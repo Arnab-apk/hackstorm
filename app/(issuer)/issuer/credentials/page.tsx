@@ -2,12 +2,15 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import useSWR from 'swr';
 import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent } from '@/components/ui/card';
 import { DataTable, type Column } from '@/components/ui/data-table';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -19,39 +22,31 @@ import {
 import {
   Plus,
   Search,
-  Filter,
-  MoreVertical,
   Eye,
   XCircle,
   CheckCircle2,
   Clock,
   Award,
   Loader2,
+  AlertCircle,
 } from 'lucide-react';
-import { formatDate, truncateDID } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
 import { toast } from 'sonner';
 
+const fetcher = (url: string) => fetch(url).then(res => res.json());
+
 interface Credential {
-  id: string;
+  _id: string;
+  schemaId: string;
   schemaName: string;
-  recipientName: string;
   recipientEmail: string;
+  recipientAddress: string;
   issuedAt: string;
   claimed: boolean;
   claimedAt?: string;
   revoked: boolean;
   revokedAt?: string;
 }
-
-// Mock data
-const mockCredentials: Credential[] = [
-  { id: '1', schemaName: 'University Degree', recipientName: 'Alice Johnson', recipientEmail: 'alice@example.com', issuedAt: '2024-12-15T10:30:00Z', claimed: true, claimedAt: '2024-12-16T14:20:00Z', revoked: false },
-  { id: '2', schemaName: 'Employee ID', recipientName: 'Bob Smith', recipientEmail: 'bob@example.com', issuedAt: '2024-12-14T09:15:00Z', claimed: false, revoked: false },
-  { id: '3', schemaName: 'Course Completion', recipientName: 'Carol Davis', recipientEmail: 'carol@example.com', issuedAt: '2024-12-13T16:45:00Z', claimed: true, claimedAt: '2024-12-14T08:00:00Z', revoked: false },
-  { id: '4', schemaName: 'University Degree', recipientName: 'David Wilson', recipientEmail: 'david@example.com', issuedAt: '2024-12-12T11:00:00Z', claimed: true, claimedAt: '2024-12-13T09:30:00Z', revoked: true, revokedAt: '2024-12-18T10:00:00Z' },
-  { id: '5', schemaName: 'Professional Certificate', recipientName: 'Eve Brown', recipientEmail: 'eve@example.com', issuedAt: '2024-12-11T14:30:00Z', claimed: true, claimedAt: '2024-12-12T16:00:00Z', revoked: false },
-  { id: '6', schemaName: 'Course Completion', recipientName: 'Frank Miller', recipientEmail: 'frank@example.com', issuedAt: '2024-12-10T08:45:00Z', claimed: false, revoked: false },
-];
 
 export default function CredentialsPage() {
   const [searchQuery, setSearchQuery] = React.useState('');
@@ -60,31 +55,22 @@ export default function CredentialsPage() {
   const [showRevokeDialog, setShowRevokeDialog] = React.useState(false);
   const [isRevoking, setIsRevoking] = React.useState(false);
 
+  const statusParam = activeTab !== 'all' ? `&status=${activeTab}` : '';
+  const { data, error, isLoading, mutate } = useSWR(`/api/issuer/credentials?pageSize=50${statusParam}`, fetcher);
+
+  const credentials: Credential[] = data?.data?.credentials || [];
+  const total = data?.data?.total || 0;
+
   const filteredCredentials = React.useMemo(() => {
-    let filtered = mockCredentials;
-
-    // Filter by search
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        c =>
-          c.recipientName.toLowerCase().includes(query) ||
-          c.recipientEmail.toLowerCase().includes(query) ||
-          c.schemaName.toLowerCase().includes(query)
-      );
-    }
-
-    // Filter by tab
-    if (activeTab === 'claimed') {
-      filtered = filtered.filter(c => c.claimed && !c.revoked);
-    } else if (activeTab === 'pending') {
-      filtered = filtered.filter(c => !c.claimed && !c.revoked);
-    } else if (activeTab === 'revoked') {
-      filtered = filtered.filter(c => c.revoked);
-    }
-
-    return filtered;
-  }, [searchQuery, activeTab]);
+    if (!searchQuery) return credentials;
+    const query = searchQuery.toLowerCase();
+    return credentials.filter(
+      c =>
+        c.recipientEmail?.toLowerCase().includes(query) ||
+        c.schemaName?.toLowerCase().includes(query) ||
+        c.recipientAddress?.toLowerCase().includes(query)
+    );
+  }, [credentials, searchQuery]);
 
   const getStatusBadge = (credential: Credential) => {
     if (credential.revoked) {
@@ -122,7 +108,7 @@ export default function CredentialsPage() {
           </div>
           <div>
             <p className="font-medium">{row.schemaName}</p>
-            <p className="text-xs text-muted-foreground">ID: {row.id}</p>
+            <p className="text-xs text-muted-foreground">ID: {row._id.slice(0, 12)}...</p>
           </div>
         </div>
       ),
@@ -132,8 +118,10 @@ export default function CredentialsPage() {
       header: 'Recipient',
       cell: (row) => (
         <div>
-          <p className="font-medium">{row.recipientName}</p>
-          <p className="text-xs text-muted-foreground">{row.recipientEmail}</p>
+          <p className="font-medium">{row.recipientEmail || 'No email'}</p>
+          <p className="text-xs text-muted-foreground font-mono">
+            {row.recipientAddress?.slice(0, 8)}...{row.recipientAddress?.slice(-6)}
+          </p>
         </div>
       ),
     },
@@ -183,12 +171,35 @@ export default function CredentialsPage() {
   ];
 
   const handleRevoke = async () => {
+    if (!selectedCredential) return;
+    
     setIsRevoking(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    toast.success('Credential revoked successfully');
-    setShowRevokeDialog(false);
-    setSelectedCredential(null);
-    setIsRevoking(false);
+    try {
+      const response = await fetch('/api/issuer/revoke', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          credentialId: selectedCredential._id,
+          reason: 'Revoked by issuer',
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to revoke credential');
+      }
+
+      toast.success('Credential revoked successfully');
+      mutate();
+      setShowRevokeDialog(false);
+      setSelectedCredential(null);
+    } catch (error: any) {
+      toast.error('Failed to revoke credential', {
+        description: error.message,
+      });
+    } finally {
+      setIsRevoking(false);
+    }
   };
 
   return (
@@ -220,24 +231,30 @@ export default function CredentialsPage() {
           <TabsList>
             <TabsTrigger value="all">All</TabsTrigger>
             <TabsTrigger value="claimed">Claimed</TabsTrigger>
-            <TabsTrigger value="pending">Pending</TabsTrigger>
+            <TabsTrigger value="unclaimed">Pending</TabsTrigger>
             <TabsTrigger value="revoked">Revoked</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
 
       {/* Table */}
-      <DataTable
-        columns={columns}
-        data={filteredCredentials}
-        keyExtractor={(row) => row.id}
-        onRowClick={(row) => setSelectedCredential(row)}
-        pagination={{
-          page: 1,
-          totalPages: 1,
-          onPageChange: () => {},
-        }}
-      />
+      {isLoading ? (
+        <Skeleton className="h-64 w-full" />
+      ) : error ? (
+        <Card>
+          <CardContent className="p-6 flex items-center justify-center gap-2 text-destructive">
+            <AlertCircle className="h-5 w-5" />
+            Failed to load credentials. Please try again.
+          </CardContent>
+        </Card>
+      ) : (
+        <DataTable
+          columns={columns}
+          data={filteredCredentials}
+          keyExtractor={(row) => row._id}
+          onRowClick={(row) => setSelectedCredential(row)}
+        />
+      )}
 
       {/* Revoke Dialog */}
       <Dialog open={showRevokeDialog} onOpenChange={setShowRevokeDialog}>
@@ -245,14 +262,14 @@ export default function CredentialsPage() {
           <DialogHeader>
             <DialogTitle>Revoke Credential</DialogTitle>
             <DialogDescription>
-              Are you sure you want to revoke this credential? This action will permanently mark the credential as invalid on the blockchain and cannot be undone.
+              Are you sure you want to revoke this credential? This action will permanently mark the credential as invalid and cannot be undone.
             </DialogDescription>
           </DialogHeader>
           {selectedCredential && (
             <div className="p-4 rounded-xl bg-muted/50 border border-border">
               <p className="font-medium">{selectedCredential.schemaName}</p>
               <p className="text-sm text-muted-foreground">
-                Issued to {selectedCredential.recipientName}
+                Issued to {selectedCredential.recipientEmail || selectedCredential.recipientAddress}
               </p>
             </div>
           )}
