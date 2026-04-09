@@ -30,14 +30,14 @@ contract CredentialRegistry {
     /**
      * @notice Verify a merkle root exists on-chain
      * @param _merkleRoot Merkle root to verify
-     * @return exists Whether the batch exists
+     * @return found Whether the batch exists
      * @return issuer Address that anchored it
      * @return timestamp When it was anchored
      */
-    function verify(bytes32 _merkleRoot) external view returns (bool exists, address issuer, uint256 timestamp) {
+    function verify(bytes32 _merkleRoot) external view returns (bool found, address issuer, uint256 timestamp) {
         uint256 packed = batches[_merkleRoot];
-        exists = packed != 0;
-        if (exists) {
+        found = packed != 0;
+        if (found) {
             issuer = address(uint160(packed >> 96));
             timestamp = (packed >> 32) & 0xFFFFFFFFFFFFFFFF;
         }
