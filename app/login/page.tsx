@@ -15,6 +15,11 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import BlurText from '@/components/react-bits/text/BlurText';
+import DecryptedText from '@/components/react-bits/text/DecryptedText';
+import StarBorder from '@/components/react-bits/animations/StarBorder';
+import GlareHover from '@/components/react-bits/animations/GlareHover';
+import AnimatedContent from '@/components/react-bits/animations/AnimatedContent';
 
 declare global {
   interface Window {
@@ -115,19 +120,28 @@ export default function LoginPage() {
           </Link>
 
           <div className="max-w-md">
-            <h1 className="mb-5 text-4xl font-semibold">Enter the workspace for your credential role.</h1>
+            <BlurText
+              text="Enter the workspace for your credential role."
+              className="mb-5 text-4xl font-semibold"
+              delay={100}
+              animateBy="words"
+            />
             <p className="text-base leading-7 text-muted-foreground">
               Connect a wallet, and the app routes you to issuer, recipient, or verifier tools based on configured role addresses.
             </p>
             <div className="mt-8 grid gap-3">
-              {roleCards.map((role) => (
-                <div key={role.title} className="flex items-center gap-3 rounded-md border border-border bg-background/50 p-3">
-                  <role.icon className="h-5 w-5 text-primary" />
-                  <div>
-                    <p className="text-sm font-medium">{role.title}</p>
-                    <p className="text-xs text-muted-foreground">{role.copy}</p>
-                  </div>
-                </div>
+              {roleCards.map((role, index) => (
+                <AnimatedContent key={role.title} distance={30} direction="vertical" delay={0.2 + index * 0.1}>
+                  <GlareHover className="rounded-md">
+                    <div className="flex items-center gap-3 rounded-md border border-border bg-background/50 p-3">
+                      <role.icon className="h-5 w-5 text-primary" />
+                      <div>
+                        <p className="text-sm font-medium">{role.title}</p>
+                        <p className="text-xs text-muted-foreground">{role.copy}</p>
+                      </div>
+                    </div>
+                  </GlareHover>
+                </AnimatedContent>
               ))}
             </div>
           </div>
@@ -151,7 +165,15 @@ export default function LoginPage() {
           </div>
 
           <div className="mb-8">
-            <h2 className="mb-2 text-2xl font-semibold">Connect your wallet</h2>
+            <h2 className="mb-2 text-2xl font-semibold">
+              <DecryptedText
+                text="Connect your wallet"
+                speed={40}
+                animateOn="view"
+                className="text-foreground"
+                encryptedClassName="text-primary/40"
+              />
+            </h2>
             <p className="text-muted-foreground">Your wallet address decides which portal opens after login.</p>
           </div>
 
@@ -210,24 +232,26 @@ export default function LoginPage() {
               </p>
             </div>
           ) : (
-            <Button
-              size="lg"
-              className="w-full"
-              disabled={isConnecting || walletInstalled === null}
-              onClick={connectWallet}
-            >
-              {isConnecting ? (
-                <>
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  Connecting...
-                </>
-              ) : (
-                <>
-                  <Wallet className="h-5 w-5" />
-                  Connect Wallet
-                </>
-              )}
-            </Button>
+            <StarBorder color="hsl(166, 73%, 44%)" speed="6s" className="w-full">
+              <Button
+                size="lg"
+                className="w-full"
+                disabled={isConnecting || walletInstalled === null}
+                onClick={connectWallet}
+              >
+                {isConnecting ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    Connecting...
+                  </>
+                ) : (
+                  <>
+                    <Wallet className="h-5 w-5" />
+                    Connect Wallet
+                  </>
+                )}
+              </Button>
+            </StarBorder>
           )}
 
           <p className="mt-6 text-center text-xs text-muted-foreground">

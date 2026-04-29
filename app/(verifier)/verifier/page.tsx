@@ -22,6 +22,8 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { formatDate, formatDateTime } from '@/lib/utils';
+import AnimatedContent from '@/components/react-bits/animations/AnimatedContent';
+import FadeContent from '@/components/react-bits/animations/FadeContent';
 
 const fetcher = (url: string) => fetch(url).then(res => res.json()).then(json => json.data || json);
 
@@ -59,7 +61,8 @@ export default function VerifierDashboard() {
       />
 
       {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <AnimatedContent distance={40} direction="vertical" delay={0.1}>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {statsLoading ? (
           Array.from({ length: 4 }).map((_, i) => (
             <Card key={i}>
@@ -81,6 +84,7 @@ export default function VerifierDashboard() {
           ))
         )}
       </div>
+      </AnimatedContent>
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Recent Verifications */}
@@ -215,7 +219,8 @@ export default function VerifierDashboard() {
       </div>
 
       {/* Quick Actions */}
-      <Card>
+      <FadeContent blur duration={0.6}>
+        <Card>
         <CardHeader>
           <CardTitle className="text-base">Quick Actions</CardTitle>
         </CardHeader>
@@ -260,6 +265,7 @@ export default function VerifierDashboard() {
           </div>
         </CardContent>
       </Card>
+      </FadeContent>
     </div>
   );
 }

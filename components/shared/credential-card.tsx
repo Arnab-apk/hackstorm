@@ -4,6 +4,7 @@ import * as React from 'react';
 import { cn, formatDate, truncateDID } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Award, ExternalLink, Shield, Clock, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import GlareHover from '@/components/react-bits/animations/GlareHover';
 
 interface CredentialCardProps {
   credential: {
@@ -70,14 +71,15 @@ function CredentialCard({
   }
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'credential-card w-full text-left',
-        onClick && 'cursor-pointer'
-      )}
-    >
+    <GlareHover className="rounded-xl" glareColor="rgba(20, 184, 166, 0.06)">
+      <button
+        type="button"
+        onClick={onClick}
+        className={cn(
+          'credential-card w-full text-left',
+          onClick && 'cursor-pointer'
+        )}
+      >
       {/* Header */}
       <div className="relative p-6 pb-4">
         <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-primary/10 to-transparent rounded-bl-full" />
@@ -142,6 +144,7 @@ function CredentialCard({
         </div>
       </div>
     </button>
+    </GlareHover>
   );
 }
 

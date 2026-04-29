@@ -22,6 +22,8 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
+import AnimatedContent from '@/components/react-bits/animations/AnimatedContent';
+import FadeContent from '@/components/react-bits/animations/FadeContent';
 
 const fetcher = (url: string) => fetch(url).then(res => res.json()).then(json => json.data || json);
 
@@ -65,28 +67,30 @@ export default function IssuerDashboard() {
       />
 
       {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {statsLoading ? (
-          Array.from({ length: 4 }).map((_, i) => (
-            <Card key={i}>
-              <CardContent className="p-4">
-                <Skeleton className="h-16 w-full" />
+      <AnimatedContent distance={40} direction="vertical" delay={0.1}>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {statsLoading ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i}>
+                <CardContent className="p-4">
+                  <Skeleton className="h-16 w-full" />
+                </CardContent>
+              </Card>
+            ))
+          ) : statsError ? (
+            <Card className="col-span-full">
+              <CardContent className="p-4 flex items-center gap-2 text-destructive">
+                <AlertCircle className="h-4 w-4" />
+                Failed to load statistics
               </CardContent>
             </Card>
-          ))
-        ) : statsError ? (
-          <Card className="col-span-full">
-            <CardContent className="p-4 flex items-center gap-2 text-destructive">
-              <AlertCircle className="h-4 w-4" />
-              Failed to load statistics
-            </CardContent>
-          </Card>
-        ) : (
-          statCards.map((stat) => (
-            <StatCard key={stat.label} {...stat} />
-          ))
-        )}
-      </div>
+          ) : (
+            statCards.map((stat) => (
+              <StatCard key={stat.label} {...stat} />
+            ))
+          )}
+        </div>
+      </AnimatedContent>
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Recent Credentials */}
@@ -206,7 +210,8 @@ export default function IssuerDashboard() {
       </div>
 
       {/* Quick Actions */}
-      <Card>
+      <FadeContent blur duration={0.6}>
+        <Card>
         <CardHeader>
           <CardTitle className="text-base">Quick Actions</CardTitle>
         </CardHeader>
@@ -251,6 +256,7 @@ export default function IssuerDashboard() {
           </div>
         </CardContent>
       </Card>
+      </FadeContent>
     </div>
   );
 }

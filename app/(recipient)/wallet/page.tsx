@@ -22,6 +22,8 @@ import {
   List,
   AlertCircle,
 } from 'lucide-react';
+import AnimatedContent from '@/components/react-bits/animations/AnimatedContent';
+import FadeContent from '@/components/react-bits/animations/FadeContent';
 
 const fetcher = (url: string) => fetch(url).then(res => res.json()).then(json => json.data || json);
 
@@ -73,6 +75,7 @@ export default function WalletPage() {
       />
 
       {/* Stats */}
+      <AnimatedContent distance={40} direction="vertical" delay={0.1}>
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardContent className="p-4 flex items-center gap-4">
@@ -120,7 +123,9 @@ export default function WalletPage() {
           </CardContent>
         </Card>
       </div>
+      </AnimatedContent>
 
+      <FadeContent blur duration={0.6} className="space-y-6">
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div className="flex flex-1 gap-4">
@@ -225,6 +230,7 @@ export default function WalletPage() {
           ))}
         </div>
       )}
+      </FadeContent>
     </div>
   );
 }
