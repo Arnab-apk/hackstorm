@@ -3,10 +3,19 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Shield, ArrowLeft, Loader2, Wallet, AlertCircle } from 'lucide-react';
+import {
+  ArrowLeft,
+  AlertCircle,
+  Building2,
+  CheckCircle2,
+  Loader2,
+  ScanLine,
+  Wallet,
+  WalletCards,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
-// Ethereum provider type
 declare global {
   interface Window {
     ethereum?: {
@@ -18,6 +27,12 @@ declare global {
   }
 }
 
+const roleCards = [
+  { icon: Building2, title: 'Issuer', copy: 'Create credentials and batches' },
+  { icon: WalletCards, title: 'Recipient', copy: 'Claim, manage, and share' },
+  { icon: ScanLine, title: 'Verifier', copy: 'Request and inspect proofs' },
+];
+
 export default function LoginPage() {
   const router = useRouter();
   const [isConnecting, setIsConnecting] = React.useState(false);
@@ -25,7 +40,6 @@ export default function LoginPage() {
   const [walletInstalled, setWalletInstalled] = React.useState<boolean | null>(null);
   const [email, setEmail] = React.useState('');
 
-  // Check if wallet is installed on mount
   React.useEffect(() => {
     setWalletInstalled(typeof window !== 'undefined' && !!window.ethereum);
   }, []);
@@ -35,14 +49,12 @@ export default function LoginPage() {
     setIsConnecting(true);
 
     try {
-      // Check if ethereum provider exists
       if (!window.ethereum) {
         setError('No wallet detected. Please install MetaMask or another Web3 wallet.');
         setIsConnecting(false);
         return;
       }
 
-      // Request account access
       const accounts = await window.ethereum.request({
         method: 'eth_requestAccounts',
       }) as string[];
@@ -53,15 +65,10 @@ export default function LoginPage() {
         return;
       }
 
-      const address = accounts[0];
-
-      // Call the login API with the wallet address
       const response = await fetch('/api/auth/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ address, email: email || undefined }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address: accounts[0], email: email || undefined }),
       });
 
       const data = await response.json();
@@ -72,25 +79,18 @@ export default function LoginPage() {
         return;
       }
 
-      // The API wraps responses in { success, data: { role, address, ... } }
       const loginData = data.data || data;
-
-      // Redirect based on role
       const routes: Record<string, string> = {
         issuer: '/issuer',
         user: '/wallet',
         verifier: '/verifier',
       };
 
-      const redirectPath = routes[loginData.role] || '/wallet';
-      router.push(redirectPath);
+      router.push(routes[loginData.role] || '/wallet');
     } catch (err) {
-      console.error('Wallet connection error:', err);
-      
-      // Handle specific errors
       if (err instanceof Error) {
         if (err.message.includes('User rejected')) {
-          setError('Connection rejected. Please approve the connection request.');
+          setError('Connection rejected. Please approve the wallet request.');
         } else if (err.message.includes('Already processing')) {
           setError('A connection request is already pending. Please check your wallet.');
         } else {
@@ -104,100 +104,97 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex">
-      {/* Left Panel - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-background to-background" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,hsl(var(--primary)/0.15),transparent_50%)]" />
-        
-        <div className="relative z-10 flex flex-col justify-between p-12 w-full">
-          <Link href="/" className="flex items-center gap-3 w-fit">
-            <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
-              <span className="text-xl font-bold text-primary-foreground">C</span>
+    <div className="flex min-h-screen bg-background">
+      <section className="relative hidden w-[48%] border-r border-border bg-card/40 lg:flex">
+        <div className="flex w-full flex-col justify-between p-12">
+          <Link href="/" className="flex w-fit items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary text-xl font-bold text-primary-foreground">
+              C
             </div>
-            <span className="font-semibold text-xl">CredVault</span>
+            <span className="text-xl font-semibold">CredVault</span>
           </Link>
-          
+
           <div className="max-w-md">
-            <h1 className="text-4xl font-bold mb-6 text-balance">
-              Welcome to the future of{' '}
-              <span className="text-primary">digital identity</span>
-            </h1>
-            <p className="text-lg text-muted-foreground leading-relaxed">
-              Secure, decentralized credentials powered by blockchain technology. 
-              Issue, store, and verify credentials with complete privacy control.
+            <h1 className="mb-5 text-4xl font-semibold">Enter the workspace for your credential role.</h1>
+            <p className="text-base leading-7 text-muted-foreground">
+              Connect a wallet, and the app routes you to issuer, recipient, or verifier tools based on configured role addresses.
             </p>
+            <div className="mt-8 grid gap-3">
+              {roleCards.map((role) => (
+                <div key={role.title} className="flex items-center gap-3 rounded-md border border-border bg-background/50 p-3">
+                  <role.icon className="h-5 w-5 text-primary" />
+                  <div>
+                    <p className="text-sm font-medium">{role.title}</p>
+                    <p className="text-xs text-muted-foreground">{role.copy}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-          
+
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
-            <Shield className="h-5 w-5 text-primary" />
-            <span>Secured by Polygon Blockchain</span>
+            <CheckCircle2 className="h-5 w-5 text-success" />
+            <span>Merkle proofs, selective disclosure, and revocation checks</span>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Right Panel - Login */}
-      <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
+      <section className="flex flex-1 items-center justify-center p-6 lg:p-12">
         <div className="w-full max-w-md">
-          {/* Mobile Logo */}
-          <div className="lg:hidden flex items-center gap-3 mb-8">
+          <div className="mb-8 lg:hidden">
             <Link href="/" className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
-                <span className="text-xl font-bold text-primary-foreground">C</span>
+              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary text-xl font-bold text-primary-foreground">
+                C
               </div>
-              <span className="font-semibold text-xl">CredVault</span>
+              <span className="text-xl font-semibold">CredVault</span>
             </Link>
           </div>
 
           <div className="mb-8">
-            <h2 className="text-2xl font-bold mb-2">Connect your wallet</h2>
-            <p className="text-muted-foreground">
-              Connect your Web3 wallet to access CredVault. Your role will be determined automatically.
-            </p>
+            <h2 className="mb-2 text-2xl font-semibold">Connect your wallet</h2>
+            <p className="text-muted-foreground">Your wallet address decides which portal opens after login.</p>
           </div>
 
-          {/* Role Info */}
-          {/* Email input for recipients */}
           <div className="mb-6">
-            <label htmlFor="email" className="block text-sm font-medium mb-2">Email (optional, for receiving credentials)</label>
-            <input
+            <label htmlFor="email" className="mb-2 block text-sm font-medium">
+              Email
+              <span className="text-muted-foreground"> optional</span>
+            </label>
+            <Input
               id="email"
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(event) => setEmail(event.target.value)}
               placeholder="you@example.com"
-              className="w-full px-4 py-2.5 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
             />
-            <p className="text-xs text-muted-foreground mt-1.5">Enter the email your credentials were issued to</p>
+            <p className="mt-1.5 text-xs text-muted-foreground">Use the email your credentials were issued to.</p>
           </div>
 
-          <div className="mb-8 p-4 rounded-xl border border-border bg-card">
-            <h3 className="font-medium mb-3">How roles work</h3>
+          <div className="mb-8 rounded-lg border border-border bg-card p-4">
+            <h3 className="mb-3 font-medium">Role routing</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li className="flex items-start gap-2">
-                <span className="text-primary mt-0.5">•</span>
-                <span><strong className="text-foreground">Issuer:</strong> Designated wallet for issuing credentials</span>
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                <span><strong className="text-foreground">Issuer:</strong> configured wallet for issuing credentials</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-primary mt-0.5">•</span>
-                <span><strong className="text-foreground">Verifier:</strong> Designated wallet for verifying credentials</span>
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                <span><strong className="text-foreground">Verifier:</strong> configured wallet for verification work</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-primary mt-0.5">•</span>
-                <span><strong className="text-foreground">User:</strong> All other wallets - receive and share credentials</span>
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                <span><strong className="text-foreground">Recipient:</strong> every other wallet opens the credential wallet</span>
               </li>
             </ul>
           </div>
 
-          {/* Error Message */}
           {error && (
-            <div className="mb-6 p-4 rounded-xl border border-destructive/50 bg-destructive/10 flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+            <div className="mb-6 flex items-start gap-3 rounded-lg border border-destructive/50 bg-destructive/10 p-4">
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
               <p className="text-sm text-destructive">{error}</p>
             </div>
           )}
 
-          {/* Connect Wallet Button */}
           {walletInstalled === false ? (
             <div className="space-y-4">
               <Button
@@ -205,11 +202,11 @@ export default function LoginPage() {
                 className="w-full"
                 onClick={() => window.open('https://metamask.io/download/', '_blank')}
               >
-                <Wallet className="mr-2 h-5 w-5" />
+                <Wallet className="h-5 w-5" />
                 Install MetaMask
               </Button>
               <p className="text-center text-xs text-muted-foreground">
-                You need a Web3 wallet to use CredVault. We recommend MetaMask.
+                A browser wallet is required for this MVP.
               </p>
             </div>
           ) : (
@@ -221,12 +218,12 @@ export default function LoginPage() {
             >
               {isConnecting ? (
                 <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  <Loader2 className="h-5 w-5 animate-spin" />
                   Connecting...
                 </>
               ) : (
                 <>
-                  <Wallet className="mr-2 h-5 w-5" />
+                  <Wallet className="h-5 w-5" />
                   Connect Wallet
                 </>
               )}
@@ -234,20 +231,20 @@ export default function LoginPage() {
           )}
 
           <p className="mt-6 text-center text-xs text-muted-foreground">
-            By connecting, you agree to our Terms of Service and Privacy Policy
+            This MVP stores a secure session cookie after wallet login.
           </p>
 
-          <div className="mt-8 pt-8 border-t border-border">
+          <div className="mt-8 border-t border-border pt-8">
             <Link
               href="/"
-              className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center justify-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
               <ArrowLeft className="h-4 w-4" />
               Back to home
             </Link>
           </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

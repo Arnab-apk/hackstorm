@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Bell, Search, LogOut, User, ChevronDown } from 'lucide-react';
+import { Bell, Search, LogOut, User, ChevronDown, Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
@@ -17,9 +17,10 @@ interface HeaderProps {
   };
   notificationCount?: number;
   showSearch?: boolean;
+  onMenuClick?: () => void;
 }
 
-function Header({ user, notificationCount = 0, showSearch = true }: HeaderProps) {
+function Header({ user, notificationCount = 0, showSearch = true, onMenuClick }: HeaderProps) {
   const router = useRouter();
   const [dropdownOpen, setDropdownOpen] = React.useState(false);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
@@ -45,12 +46,21 @@ function Header({ user, notificationCount = 0, showSearch = true }: HeaderProps)
   }, []);
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/80 backdrop-blur-xl px-6">
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/85 px-4 backdrop-blur-xl sm:px-6">
       {/* Search */}
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <button
+          type="button"
+          className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground lg:hidden"
+          onClick={onMenuClick}
+          aria-label="Open navigation"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
       {showSearch && (
-        <div className="w-full max-w-md">
+        <div className="hidden w-full max-w-md sm:block">
           <Input
-            placeholder="Search..."
+            placeholder="Search credentials, batches, requests..."
             icon={<Search className="h-4 w-4" />}
             className="bg-muted border-transparent focus:bg-input"
           />
@@ -58,9 +68,10 @@ function Header({ user, notificationCount = 0, showSearch = true }: HeaderProps)
       )}
 
       {!showSearch && <div />}
+      </div>
 
       {/* Right side */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-4">
         {/* Notifications */}
         <button
           type="button"
@@ -83,7 +94,7 @@ function Header({ user, notificationCount = 0, showSearch = true }: HeaderProps)
             <button
               type="button"
               onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="flex items-center gap-3 rounded-lg p-2 hover:bg-muted transition-colors"
+              className="flex items-center gap-3 rounded-md p-2 hover:bg-muted transition-colors"
             >
               <Avatar fallback={user.name} src={user.avatar} size="sm" />
               <div className="hidden md:block text-left">

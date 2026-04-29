@@ -30,6 +30,8 @@ function AppShell({
   notificationCount,
   showSearch,
 }: AppShellProps) {
+  const [sidebarOpen, setSidebarOpen] = React.useState(false);
+
   return (
     <div className="min-h-screen bg-background">
       <Sidebar
@@ -37,14 +39,17 @@ function AppShell({
         subtitle={sidebarSubtitle}
         navItems={navItems}
         bottomItems={bottomNavItems}
+        open={sidebarOpen}
+        onOpenChange={setSidebarOpen}
       />
-      <div className="pl-64">
+      <div className="lg:pl-64">
         <Header
           user={user}
           notificationCount={notificationCount}
           showSearch={showSearch}
+          onMenuClick={() => setSidebarOpen(true)}
         />
-        <main className="p-6">{children}</main>
+        <main className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
     </div>
   );
