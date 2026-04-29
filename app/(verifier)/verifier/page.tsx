@@ -228,9 +228,9 @@ export default function VerifierDashboard() {
           <div className="grid gap-4 md:grid-cols-3">
             <Link
               href="/verifier/scan"
-              className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card hover:border-primary/30 hover:bg-muted/50 transition-all"
+              className="quick-action group"
             >
-              <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300 group-hover:shadow-lg group-hover:shadow-primary/20">
                 <ScanLine className="h-5 w-5" />
               </div>
               <div>
@@ -240,9 +240,9 @@ export default function VerifierDashboard() {
             </Link>
             <Link
               href="/verifier/requests/new"
-              className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card hover:border-primary/30 hover:bg-muted/50 transition-all"
+              className="quick-action group"
             >
-              <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300 group-hover:shadow-lg group-hover:shadow-primary/20">
                 <ClipboardList className="h-5 w-5" />
               </div>
               <div>
@@ -252,9 +252,9 @@ export default function VerifierDashboard() {
             </Link>
             <Link
               href="/verifier/requests"
-              className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card hover:border-primary/30 hover:bg-muted/50 transition-all"
+              className="quick-action group"
             >
-              <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300 group-hover:shadow-lg group-hover:shadow-primary/20">
                 <TrendingUp className="h-5 w-5" />
               </div>
               <div>

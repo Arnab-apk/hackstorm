@@ -20,6 +20,7 @@ import DecryptedText from '@/components/react-bits/text/DecryptedText';
 import StarBorder from '@/components/react-bits/animations/StarBorder';
 import GlareHover from '@/components/react-bits/animations/GlareHover';
 import AnimatedContent from '@/components/react-bits/animations/AnimatedContent';
+import Particles from '@/components/react-bits/backgrounds/Particles';
 
 declare global {
   interface Window {
@@ -110,8 +111,12 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen bg-background">
-      <section className="relative hidden w-[48%] border-r border-border bg-card/40 lg:flex">
-        <div className="flex w-full flex-col justify-between p-12">
+      <section className="relative hidden w-[48%] border-r border-border bg-card/40 lg:flex overflow-hidden">
+        {/* Particles background */}
+        <div className="absolute inset-0 z-0">
+          <Particles count={35} color="20, 184, 166" maxSize={1.5} speed={0.2} connectDistance={100} />
+        </div>
+        <div className="relative z-10 flex w-full flex-col justify-between p-12">
           <Link href="/" className="flex w-fit items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary text-xl font-bold text-primary-foreground">
               C

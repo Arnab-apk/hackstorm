@@ -22,6 +22,8 @@ import SpotlightCard from '@/components/react-bits/components/SpotlightCard';
 import AnimatedContent from '@/components/react-bits/animations/AnimatedContent';
 import FadeContent from '@/components/react-bits/animations/FadeContent';
 import ClickSpark from '@/components/react-bits/animations/ClickSpark';
+import Magnet from '@/components/react-bits/animations/Magnet';
+import TiltCard from '@/components/react-bits/components/TiltCard';
 
 const Aurora = dynamic(() => import('@/components/react-bits/backgrounds/Aurora'), {
   ssr: false,
@@ -58,10 +60,10 @@ const checks = [
 export default function LandingPage() {
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-50 border-b border-border bg-background/85 backdrop-blur-xl">
+      <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-lg font-bold text-primary-foreground">
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-lg font-bold text-primary-foreground shadow-lg shadow-primary/25 group-hover:shadow-primary/40 transition-shadow">
               C
             </div>
             <div>
@@ -73,7 +75,7 @@ export default function LandingPage() {
             <Button variant="ghost" asChild>
               <Link href="#workflow">Workflow</Link>
             </Button>
-            <Button asChild>
+            <Button asChild className="shadow-lg shadow-primary/20">
               <Link href="/login">
                 Launch App
                 <ArrowRight className="h-4 w-4" />
@@ -93,22 +95,26 @@ export default function LandingPage() {
             speed={0.8}
           />
         </div>
+        <div className="absolute -top-40 -right-40 h-80 w-80 rounded-full bg-primary/10 blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-accent/10 blur-3xl" />
 
-        <div className="relative z-10 mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 sm:py-20 lg:grid-cols-[1.05fr_0.95fr] lg:px-8">
+        <div className="relative z-10 mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-[1.05fr_0.95fr] lg:px-8">
           <div className="flex flex-col justify-center">
-            <div className="mb-6 inline-flex w-fit items-center gap-2 rounded-md border border-primary/25 bg-primary/10 px-3 py-2 text-sm text-primary">
-              <ShieldCheck className="h-4 w-4" />
-              <ShinyText
-                text="Blockchain-anchored credential MVP"
-                speed={3}
-                color="hsl(166, 73%, 44%)"
-                shineColor="#ffffff"
-              />
-            </div>
+            <AnimatedContent distance={20} direction="vertical" delay={0}>
+              <div className="mb-6 inline-flex w-fit items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-4 py-2 text-sm text-primary backdrop-blur-sm">
+                <ShieldCheck className="h-4 w-4" />
+                <ShinyText
+                  text="Blockchain-anchored credential MVP"
+                  speed={3}
+                  color="hsl(166, 73%, 44%)"
+                  shineColor="#ffffff"
+                />
+              </div>
+            </AnimatedContent>
 
             <BlurText
               text="CredVault"
-              className="max-w-3xl text-4xl font-semibold tracking-tight sm:text-5xl lg:text-6xl"
+              className="max-w-3xl text-5xl font-bold tracking-tight sm:text-6xl lg:text-7xl"
               delay={150}
               animateBy="letters"
             />
@@ -124,14 +130,16 @@ export default function LandingPage() {
               />
             </div>
 
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-10 flex flex-col gap-3 sm:flex-row">
               <ClickSpark sparkColor="hsl(166, 73%, 44%)" sparkCount={10}>
-                <Button size="xl" asChild>
-                  <Link href="/login">
-                    Open Dashboard
-                    <ArrowRight className="h-5 w-5" />
-                  </Link>
-                </Button>
+                <Magnet padding={50} magnetStrength={3}>
+                  <Button size="xl" asChild className="shadow-xl shadow-primary/25">
+                    <Link href="/login">
+                      Open Dashboard
+                      <ArrowRight className="h-5 w-5" />
+                    </Link>
+                  </Button>
+                </Magnet>
               </ClickSpark>
               <Button variant="outline" size="xl" asChild>
                 <Link href="#workflow">View Workflow</Link>
@@ -151,57 +159,59 @@ export default function LandingPage() {
           </div>
 
           <AnimatedContent distance={60} direction="horizontal" delay={0.3}>
-            <SpotlightCard className="p-4 shadow-2xl shadow-black/20" spotlightColor="rgba(20, 184, 166, 0.2)">
-              <div className="mb-4 flex items-center justify-between border-b border-border pb-4">
-                <div>
-                  <p className="text-sm font-medium">Verification Result</p>
-                  <p className="text-xs text-muted-foreground">University Degree credential</p>
-                </div>
-                <span className="rounded-md bg-success/15 px-2.5 py-1 text-xs font-medium text-success">
-                  Valid
-                </span>
-              </div>
-              <div className="space-y-3">
-                {[
-                  ['Subject', 'did:pkh:eip155:137:0x8a12...b91e'],
-                  ['Merkle Root', '0x2ab7...62cf'],
-                  ['Anchor', 'Polygon Amoy batch record'],
-                  ['Disclosure', '4 visible fields, 3 hidden'],
-                ].map(([label, value]) => (
-                  <div key={label} className="grid gap-1 rounded-md bg-muted/45 p-3 sm:grid-cols-[120px_1fr]">
-                    <span className="text-xs text-muted-foreground">{label}</span>
-                    <span className="break-all text-sm">{value}</span>
+            <TiltCard tiltAmount={8} borderGlow glareColor="rgba(20, 184, 166, 0.12)">
+              <SpotlightCard className="p-5 shadow-2xl shadow-black/20" spotlightColor="rgba(20, 184, 166, 0.2)">
+                <div className="mb-4 flex items-center justify-between border-b border-border pb-4">
+                  <div>
+                    <p className="text-sm font-medium">Verification Result</p>
+                    <p className="text-xs text-muted-foreground">University Degree credential</p>
                   </div>
-                ))}
-              </div>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-md border border-border p-4">
-                  <FileCheck2 className="mb-3 h-5 w-5 text-primary" />
-                  <p className="text-sm font-medium">Proof verified</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Credential hash belongs to the stored Merkle root.
-                  </p>
+                  <span className="rounded-full bg-success/15 px-3 py-1 text-xs font-medium text-success">
+                    Valid
+                  </span>
                 </div>
-                <div className="rounded-md border border-border p-4">
-                  <EyeOff className="mb-3 h-5 w-5 text-accent" />
-                  <p className="text-sm font-medium">Privacy preserved</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Hidden fields stay masked in public share links.
-                  </p>
+                <div className="space-y-3">
+                  {[
+                    ['Subject', 'did:pkh:eip155:137:0x8a12...b91e'],
+                    ['Merkle Root', '0x2ab7...62cf'],
+                    ['Anchor', 'Polygon Amoy batch record'],
+                    ['Disclosure', '4 visible fields, 3 hidden'],
+                  ].map(([label, value]) => (
+                    <div key={label} className="grid gap-1 rounded-lg bg-muted/45 p-3 sm:grid-cols-[120px_1fr]">
+                      <span className="text-xs text-muted-foreground">{label}</span>
+                      <span className="break-all text-sm font-mono">{value}</span>
+                    </div>
+                  ))}
                 </div>
-              </div>
-            </SpotlightCard>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-lg border border-border/60 bg-background/50 p-4">
+                    <FileCheck2 className="mb-3 h-5 w-5 text-primary" />
+                    <p className="text-sm font-medium">Proof verified</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Credential hash belongs to the stored Merkle root.
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border/60 bg-background/50 p-4">
+                    <EyeOff className="mb-3 h-5 w-5 text-accent" />
+                    <p className="text-sm font-medium">Privacy preserved</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Hidden fields stay masked in public share links.
+                    </p>
+                  </div>
+                </div>
+              </SpotlightCard>
+            </TiltCard>
           </AnimatedContent>
         </div>
       </section>
 
       {/* Workflow section */}
       <section id="workflow" className="border-y border-border bg-card/35">
-        <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
           <AnimatedContent distance={40} direction="vertical">
-            <div className="mb-8 max-w-2xl">
-              <h2 className="text-2xl font-semibold">One flow, three workspaces</h2>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            <div className="mb-10 max-w-2xl">
+              <h2 className="text-3xl font-bold tracking-tight">One flow, three workspaces</h2>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">
                 The project is organized around the real credential lifecycle: issue, claim, share,
                 verify.
               </p>
@@ -215,13 +225,17 @@ export default function LandingPage() {
                 direction="vertical"
                 delay={index * 0.15}
               >
-                <div className="rounded-lg border border-border bg-background/60 p-5 transition-all duration-200 hover:border-primary/30 hover:bg-background/80">
-                  <role.icon className="mb-4 h-6 w-6 text-primary" />
-                  <h3 className="font-semibold">{role.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    {role.description}
-                  </p>
-                </div>
+                <TiltCard tiltAmount={6} glareColor="rgba(20, 184, 166, 0.08)">
+                  <div className="p-6">
+                    <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                      <role.icon className="h-5 w-5 text-primary" />
+                    </div>
+                    <h3 className="text-lg font-semibold">{role.title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                      {role.description}
+                    </p>
+                  </div>
+                </TiltCard>
               </AnimatedContent>
             ))}
           </div>
@@ -230,28 +244,35 @@ export default function LandingPage() {
 
       {/* Bottom CTA */}
       <FadeContent blur duration={0.8}>
-        <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-          <div className="grid gap-4 rounded-lg border border-border bg-card p-6 md:grid-cols-[1fr_auto] md:items-center">
-            <div>
-              <div className="mb-3 flex items-center gap-2 text-sm text-primary">
-                <Fingerprint className="h-4 w-4" />
-                Wallet-based access
+        <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+          <SpotlightCard
+            className="p-8 shadow-xl"
+            spotlightColor="rgba(20, 184, 166, 0.15)"
+          >
+            <div className="grid gap-6 md:grid-cols-[1fr_auto] md:items-center">
+              <div>
+                <div className="mb-3 flex items-center gap-2 text-sm text-primary">
+                  <Fingerprint className="h-4 w-4" />
+                  Wallet-based access
+                </div>
+                <h2 className="text-2xl font-bold tracking-tight">
+                  Connect a wallet to enter the right portal.
+                </h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+                  Issuer and verifier roles are mapped from configured wallet addresses. Every other
+                  wallet opens the recipient wallet.
+                </p>
               </div>
-              <h2 className="text-2xl font-semibold">
-                Connect a wallet to enter the right portal.
-              </h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                Issuer and verifier roles are mapped from configured wallet addresses. Every other
-                wallet opens the recipient wallet.
-              </p>
+              <Magnet padding={60} magnetStrength={2}>
+                <Button size="lg" asChild className="shadow-lg shadow-primary/20">
+                  <Link href="/login">
+                    Connect Wallet
+                    <BadgeCheck className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </Magnet>
             </div>
-            <Button size="lg" asChild>
-              <Link href="/login">
-                Connect Wallet
-                <BadgeCheck className="h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
+          </SpotlightCard>
         </section>
       </FadeContent>
     </main>

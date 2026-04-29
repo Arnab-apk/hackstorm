@@ -219,9 +219,9 @@ export default function IssuerDashboard() {
           <div className="grid gap-4 md:grid-cols-3">
             <Link
               href="/issuer/issue"
-              className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card hover:border-primary/30 hover:bg-muted/50 transition-all"
+              className="quick-action group"
             >
-              <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300 group-hover:shadow-lg group-hover:shadow-primary/20">
                 <Plus className="h-5 w-5" />
               </div>
               <div>
@@ -231,9 +231,9 @@ export default function IssuerDashboard() {
             </Link>
             <Link
               href="/issuer/batch"
-              className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card hover:border-primary/30 hover:bg-muted/50 transition-all"
+              className="quick-action group"
             >
-              <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300 group-hover:shadow-lg group-hover:shadow-primary/20">
                 <FileStack className="h-5 w-5" />
               </div>
               <div>
@@ -243,9 +243,9 @@ export default function IssuerDashboard() {
             </Link>
             <Link
               href="/issuer/credentials"
-              className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card hover:border-primary/30 hover:bg-muted/50 transition-all"
+              className="quick-action group"
             >
-              <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300 group-hover:shadow-lg group-hover:shadow-primary/20">
                 <TrendingUp className="h-5 w-5" />
               </div>
               <div>
